@@ -158,7 +158,7 @@ void run_rational_data_single_method_parallel(
     {
         std::string scene_path = args.data_dir + scene_name + sub_folder;
         int nbr_files=0;
-        std::cout<<"scene path "<<scene_path<<std::endl;
+        //std::cout<<"scene path "<<scene_path<<std::endl;
         bool skip_folder = false;
         for (const auto &entry : bases)
         {
@@ -184,14 +184,14 @@ void run_rational_data_single_method_parallel(
 
             std::string resultsFilename = std::string(filename_noext + "_result.bin");
             std::ifstream rinfile (resultsFilename, std::ios::in | std::ios::binary);
-            all_V = read_rational_csv_bin(filename, results);
-            // if (vinfile && rinfile)
-            // {
-            //     read_rational_binary(vertexFilename, all_V );
-            //     read_rational_binary(resultsFilename, results );
-            // }
-            // else 
-            //     all_V = read_rational_csv_bin(filename, results);
+            //all_V = read_rational_csv_bin(filename, results);
+            if (vinfile && rinfile)
+            {
+                read_rational_binary(vertexFilename, all_V );
+                read_rational_binary(resultsFilename, results );
+            }
+            else 
+                all_V = read_rational_csv_bin(filename, results);
             
             if (all_V.size() == 0)
             {
@@ -220,7 +220,7 @@ void run_rational_data_single_method_parallel(
                 expect_list.push_back(expected_result);
             }
         }
-        std::cout<<"file nbr "<<nbr_files<<std::endl;
+        //std::cout<<"file nbr "<<nbr_files<<std::endl;
     }
     
 
