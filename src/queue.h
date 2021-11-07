@@ -39,3 +39,5 @@ public:
 	// Inserts a new key 'k'
 	 bool insertKey(const item &k);
 };
+
+void split_dimension(const CCDOut& out,BoxCompute& box);

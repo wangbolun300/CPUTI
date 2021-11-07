@@ -105,7 +105,8 @@ tbb::parallel_for( tbb::blocked_range<int>(0,V.size()),
                                 CCDOut out;
                             
                             if (is_edge){
-                                result_list[i]=1;
+                                edgeEdgeCCD(data, config, out);
+                                result_list[i]=int(out.result);;
                             }
                             else{
                                vertexFaceCCD(data, config, out);
@@ -121,7 +122,7 @@ for(int i=0;i<result_list.size();i++){
         trues++;
     }
 }
-std::cout<<"THE number of trues "<<trues<<std::endl;
+std::cout<<"THE number of returned trues"<<trues<<std::endl;
     return;
 }
 
@@ -379,15 +380,13 @@ void run_ours_float_for_all_data(int parallel)
     arg.minimum_separation = 0;
     arg.tight_inclusion_tolerance = 1e-6;
     arg.tight_inclusion_max_iter = 1e6;
-    #ifdef CHECK_EE
+
+
     arg.run_ee_dataset = true;
     arg.run_vf_dataset = false;
-    #else
-    arg.run_ee_dataset = false;
-    arg.run_vf_dataset = true;
-    #endif
-    arg.run_simulation_dataset = true;
-    arg.run_handcrafted_dataset = false;
+
+    arg.run_simulation_dataset = false;
+    arg.run_handcrafted_dataset = true;
     run_one_method_over_all_data(arg, parallel, folder, tail);
 
 }
