@@ -5,7 +5,8 @@
 #include <cputi/CType.hpp>
 #include <assert.h>
 //#define GPUTI_USE_DOUBLE_PRECISION
-#define GPUTI_GO_DEAP_HEAP
+#define RUN_TBB_PARALLIZATION
+// #define GPUTI_GO_DEAP_HEAP
 static const int TESTING_ID = 392;//219064;
 static const int TEST_SIZE=1;
 static const int TEST_NBR_QUERIES=1e9;// set as large as possible to avoid truncation of reading data
@@ -19,7 +20,7 @@ static const int TEST_NBR_QUERIES=1e9;// set as large as possible to avoid trunc
 // token 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
 
 
-static const int HEAP_SIZE=5000;
+static const int HEAP_SIZE=1000;
 
 // overflow instructions
 static const int NO_OVERFLOW = 0;

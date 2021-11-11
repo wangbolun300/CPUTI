@@ -168,8 +168,7 @@ using namespace std;
 // A utility function to swap two elements
  void swap(item *x, item *y)
 {
-	item *temp;
-	temp = x;
-	x = y;
-	y = temp;
+	item temp=*x;
+	*x = *y;
+	*y = temp;
 }

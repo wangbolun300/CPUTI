@@ -91,10 +91,14 @@ void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, boo
 Timer timer;
 result_list.resize(V.size());
 timer.start();
+#ifdef RUN_TBB_PARALLIZATION
 tbb::parallel_for( tbb::blocked_range<int>(0,V.size()),
                        [&](tbb::blocked_range<int> r)
                         {
                            for (int i=r.begin(); i<r.end(); ++i)
+#else
+                            for (int i=0; i<V.size(); ++i)
+#endif
                            {
                                CCDdata data = array_to_ccd( V[i], is_edge);
                                CCDConfig config;
@@ -113,7 +117,10 @@ tbb::parallel_for( tbb::blocked_range<int>(0,V.size()),
                                 result_list[i]=int(out.result);
                             }
                            } 
-                        });
+                        }
+#ifdef RUN_TBB_PARALLIZATION
+                        );
+#endif
 timer.stop();
 run_time=timer.getElapsedTimeInMicroSec();
 int trues=0;
@@ -385,8 +392,8 @@ void run_ours_float_for_all_data(int parallel)
     arg.run_ee_dataset = true;
     arg.run_vf_dataset = false;
 
-    arg.run_simulation_dataset = false;
-    arg.run_handcrafted_dataset = true;
+    arg.run_simulation_dataset = true;
+    arg.run_handcrafted_dataset = false;
     run_one_method_over_all_data(arg, parallel, folder, tail);
 
 }

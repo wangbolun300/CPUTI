@@ -1,5 +1,7 @@
 #include <cputi/root_finder.h>
 #include <cputi/queue.h>
+#include "../app/timer.hpp"
+double time_heap=0;
  void compute_edge_edge_tolerance(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
     Scalar p000[3], p001[3], p011[3], p010[3], p100[3], p101[3], p111[3], p110[3];
     for(int i=0;i<3;i++){
@@ -201,7 +203,7 @@
 }
 
  void edgeEdgeCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
-    
+    ccd::Timer timer;
     MinHeap istack;// now when initialized, size is 1 and initialized with [0,1]^3
     compute_edge_edge_tolerance(data_in, config, out);
     BoxCompute box;
@@ -336,7 +338,9 @@
             continue;
         }
         split_dimension(out,box);
+        timer.start();
         bisect_ee_and_push(box,config, istack,out);
+        time_heap+=timer.getElapsedTimeInMicroSec();
     }
     if (out.overflow_flag != NO_OVERFLOW)
     {
@@ -356,5 +360,8 @@
     return;
 }
 
+double return_time(){
+    return time_heap;
+}
 
 
