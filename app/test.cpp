@@ -117,9 +117,9 @@ tbb::parallel_for( tbb::blocked_range<int>(0,V.size()),
                                 result_list[i]=int(out.result);
                             }
                            } 
-                        }
+                        
 #ifdef RUN_TBB_PARALLIZATION
-                        );
+                        });
 #endif
 timer.stop();
 run_time=timer.getElapsedTimeInMicroSec();
@@ -291,7 +291,7 @@ void run_rational_data_single_method_parallel(
     }
     tavg /= size;
     std::cout << "avg time " << tavg << std::endl;
-
+    std::cout<<"avg heap time "<<return_time()/size<<" "<<return_time_vf()/size<<std::endl;
     if (expect_list.size() != size)
     {
         std::cout << "size wrong!!!" << std::endl;
@@ -392,8 +392,8 @@ void run_ours_float_for_all_data(int parallel)
     arg.run_ee_dataset = true;
     arg.run_vf_dataset = false;
 
-    arg.run_simulation_dataset = true;
-    arg.run_handcrafted_dataset = false;
+    arg.run_simulation_dataset = false;
+    arg.run_handcrafted_dataset = true;
     run_one_method_over_all_data(arg, parallel, folder, tail);
 
 }

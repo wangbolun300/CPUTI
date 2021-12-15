@@ -1,8 +1,8 @@
 #include <cputi/root_finder.h>
 #include <cputi/queue.h>
 #include <iostream>
-
-
+#include "../app/timer.hpp"
+double time_heap_vf=0;
 
 CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge)
 {
@@ -342,7 +342,7 @@ void bisect_vf_and_push(BoxCompute& box,const CCDConfig& config, MinHeap& istack
 }
 
 void vertexFaceCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
-    
+    ccd::Timer timer;
     MinHeap istack;// now when initialized, size is 1 and initialized with [0,1]^3
     compute_face_vertex_tolerance(data_in, config, out);
     BoxCompute box;
@@ -378,10 +378,10 @@ void vertexFaceCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
         {
             break;
         }
-
+timer.start();
         //LINENBR 6
         box.current_item = istack.extractMin();// get the level and the intervals
-        
+        time_heap_vf+=timer.getElapsedTimeInMicroSec();
         // if this box is later than TOI_SKIP in time, we can skip this one.
         // TOI_SKIP is only updated when the box is small enough or totally contained in eps-box
         if (box.current_item.itv[0].first>=skip_toi)
@@ -477,7 +477,9 @@ void vertexFaceCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
             continue;
         }
         split_dimension(out,box);
+        timer.start();
         bisect_vf_and_push(box,config, istack,out);
+        time_heap_vf+=timer.getElapsedTimeInMicroSec();
     }
     if (out.overflow_flag != NO_OVERFLOW)
     {
@@ -498,3 +500,6 @@ void vertexFaceCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out){
 }
 
 
+double return_time_vf(){
+    return time_heap_vf;
+}

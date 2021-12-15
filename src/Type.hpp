@@ -5,7 +5,7 @@
 #include <cputi/CType.hpp>
 #include <assert.h>
 //#define GPUTI_USE_DOUBLE_PRECISION
-#define RUN_TBB_PARALLIZATION
+// #define RUN_TBB_PARALLIZATION //TODO please disable timer when running parallel
 // #define GPUTI_GO_DEAP_HEAP
 static const int TESTING_ID = 392;//219064;
 static const int TEST_SIZE=1;

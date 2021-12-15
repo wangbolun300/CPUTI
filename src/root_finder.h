@@ -5,3 +5,4 @@
 void vertexFaceCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out);
 void edgeEdgeCCD(const CCDdata &data_in,const CCDConfig& config, CCDOut& out);
 double return_time();
+double return_time_vf();
