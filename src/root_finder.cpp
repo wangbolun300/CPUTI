@@ -485,3 +485,5 @@ void vertexFaceCCD(const CCDdata &data_in, const CCDConfig &config,
 }
 
 double return_time_vf() { return time_heap_vf; }
+
+

@@ -28,7 +28,7 @@ target_include_directories(simple_ti PUBLIC ${PROJECT_BINARY_DIR}/include)
 target_link_libraries(simple_ti PRIVATE warnings::all)
 
 #Optional
-add_executable(test_bin app/test.cpp app/read_rational_csv.cpp)
+add_executable(test_bin app/test.cpp app/read_rational_csv.cpp app/new_ccd.cpp)
 target_link_libraries(test_bin PRIVATE simple_ti)
 # gmp
 find_package(GMP)

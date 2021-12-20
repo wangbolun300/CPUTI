@@ -21,7 +21,7 @@ static const int TEST_NBR_QUERIES =
 // the limited heap size. token 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
 
 static const int HEAP_SIZE = 1000;
-
+static const int UNIT_SIZE = 100; // 219
 // overflow instructions
 static const int NO_OVERFLOW = 0;
 static const int BISECTION_OVERFLOW = 1;
@@ -55,37 +55,10 @@ public:
 
 typedef int ptest[5];
 
-class CCDdata {
-public:
-  CCDdata(){};
-  // CCDdata(const std::array<std::array<Scalar,3>,8>&input);
-  Scalar v0s[3];
-  Scalar v1s[3];
-  Scalar v2s[3];
-  Scalar v3s[3];
-  Scalar v0e[3];
-  Scalar v1e[3];
-  Scalar v2e[3];
-  Scalar v3e[3];
-  CCDdata &operator=(const CCDdata &x) {
-    if (this == &x)
-      return *this;
-    for (int i = 0; i < 3; i++) {
-      v0s[i] = x.v0s[i];
-      v1s[i] = x.v1s[i];
-      v2s[i] = x.v2s[i];
-      v3s[i] = x.v3s[i];
-      v0e[i] = x.v0e[i];
-      v1e[i] = x.v1e[i];
-      v2e[i] = x.v2e[i];
-      v3e[i] = x.v3e[i];
-    }
-    return *this;
-  }
-};
 
-CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge);
-void single_test_wrapper(CCDdata *vfdata, bool &result);
+
+
+
 void print_vector(Scalar *v, int size);
 void print_vector(int *v, int size);
 
@@ -111,8 +84,39 @@ public:
     return *this;
   }
 };
+class MP_unit {
+public:
+  Singleinterval itv[3];
+
+  int query_id;
+  Scalar true_tol;
+  bool box_in;
+
+void init(int i) {
+    itv[0].first = 0;
+    itv[0].second = 1;
+    itv[1].first = 0;
+    itv[1].second = 1;
+    itv[2].first = 0;
+    itv[2].second = 1;
+    query_id = i;
+    box_in = true;
+  }
+MP_unit &operator=(const MP_unit &x) {
+    if (this == &x)
+      return *this;
+    itv[0] = x.itv[0];
+    itv[1] = x.itv[1];
+    itv[2] = x.itv[2];
+    query_id = x.query_id;
+    box_in = x.box_in;
+    true_tol = x.true_tol;
+    return *this;
+  }
+};
 
 // the initialized error input, solve tolerance, time interval upper bound, etc.
+
 class CCDConfig {
 public:
   Scalar err_in[3]; // the input error bound calculate from the AABB of the
@@ -120,6 +124,9 @@ public:
   Scalar co_domain_tolerance; // tolerance of the co-domain
   Scalar max_t;               // the upper bound of the time interval
   int max_itr;                // the maximal nbr of iterations
+  unsigned int mp_end;
+  int mp_status = 1; // when true, it means that no overflow happens
+  int not_empty;
 };
 
 // the output info
@@ -153,4 +160,48 @@ public:
   Scalar u;
   Scalar v;
   void calculate_tuv(const BoxCompute &box);
+  void calculate_tuv(const MP_unit &unit);
 };
+Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp);
+class CCDdata {
+public:
+  CCDdata(){};
+  // CCDdata(const std::array<std::array<Scalar,3>,8>&input);
+  Scalar v0s[3];
+  Scalar v1s[3];
+  Scalar v2s[3];
+  Scalar v3s[3];
+  Scalar v0e[3];
+  Scalar v1e[3];
+  Scalar v2e[3];
+  Scalar v3e[3];
+  Scalar ms;     // minimum separation
+  Scalar err[3]; // error bound of each query, calculated from each scene
+  Scalar
+      tol[3]; // domain tolerance that helps to decide which dimension to split
+  int last_round_has_root = 0;
+  int last_round_has_root_record =
+      0; // to avoid missing collisions by resetting last_round_has_root
+  int sure_have_root;
+  int nbr_pushed = 0;// the length of the current queue
+   CCDdata &operator=(const CCDdata &x) {
+    if (this == &x)
+      return *this;
+    for (int i = 0; i < 3; i++) {
+      v0s[i] = x.v0s[i];
+      v1s[i] = x.v1s[i];
+      v2s[i] = x.v2s[i];
+      v3s[i] = x.v3s[i];
+      v0e[i] = x.v0e[i];
+      v1e[i] = x.v1e[i];
+      v2e[i] = x.v2e[i];
+      v3e[i] = x.v3e[i];
+      err[i] = x.err[i];
+      tol[i] = x.tol[i];
+    }
+    ms = x.ms;
+    return *this;
+  }
+};
+CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge);
+void single_test_wrapper(CCDdata *vfdata, bool &result);
