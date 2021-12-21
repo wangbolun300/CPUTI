@@ -222,18 +222,6 @@ void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
   }
 }
 
-bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
-#ifdef GPUTI_USE_DOUBLE_PRECISION
-  if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
-    return false;
-  }
-#else
-  if (num1 + num2 > 1 / (1 - FLT_EPSILON)) {
-    return false;
-  }
-#endif
-  return true;
-}
 void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
                            MP_unit bisected[2], int &valid_nbr) {
   interval_pair halves(unit.itv[split]); // bisected
@@ -283,12 +271,13 @@ void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
 }
 // input: "refine" is the number of iterations out side this function
 void vf_ccd_memory_pool_parallel(// parallel with different unit_id
-    std::array<tbb::concurrent_vector<MP_unit>, 2> units,
+    std::array<tbb::concurrent_vector<MP_unit>, 2> &units,
     std::vector<CCDdata> &data, CCDConfig &config, std::vector<int> &results,
     int vec_in, int unit_id, std::vector<tbb::mutex> &mutex, int refine) {
       bool no_need_check = false;
       int vec_out= !bool(vec_in);
       int box_id = units[vec_in][unit_id].query_id;
+      int query_size=data.size();
       if (data[box_id].sure_have_root >
           0) { // if it is sure that have root, then no need to check
         no_need_check = true;
@@ -303,8 +292,9 @@ void vf_ccd_memory_pool_parallel(// parallel with different unit_id
                                              // is not broken, do the check
         bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data[box_id],
                                                                    units[vec_in][unit_id]);
-        mutex_add(mutex[1], data[box_id].nbr_pushed, -1);// queue size-=1
+        mutex_add(mutex[box_id+query_size], data[box_id].nbr_pushed, -1);// queue size-=1
         if (zero_in) {
+          //std::cout<<"###have root"<<std::endl;
           widths[0] = units[vec_in][unit_id].itv[0].second - units[vec_in][unit_id].itv[0].first;
           widths[1] = units[vec_in][unit_id].itv[1].second - units[vec_in][unit_id].itv[1].first;
           widths[2] = units[vec_in][unit_id].itv[2].second - units[vec_in][unit_id].itv[2].first;
@@ -315,21 +305,21 @@ void vf_ccd_memory_pool_parallel(// parallel with different unit_id
                       widths[2] <= data[box_id].tol[2];
           if (condition) {
             
-            mutex_equal(mutex[0], data[box_id].sure_have_root, 1);
+            mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
             
           }
           // Condition 2, the box is inside the epsilon box, have a root, return
           // true;
           condition = units[vec_in][unit_id].box_in;
           if (condition) {
-            mutex_equal(mutex[0], data[box_id].sure_have_root, 1);
+            mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
           }
 
           // Condition 3, real tolerance is smaller than the input tolerance,
           // return true
           condition = units[vec_in][unit_id].true_tol <= config.co_domain_tolerance;
           if (condition) {
-            mutex_equal(mutex[0], data[box_id].sure_have_root, 1);
+            mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
           }
           split_dimension_memory_pool(data[box_id], widths, split);
           MP_unit bisected[2];
@@ -341,30 +331,38 @@ void vf_ccd_memory_pool_parallel(// parallel with different unit_id
           bisected[1].query_id = box_id;
           if (valid_nbr == 0) { // in this case, the interval is too small that
                                 // overflow happens. it should be rare to happen
-            mutex_equal(mutex[0], data[box_id].sure_have_root, 1);
+            mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
           }
           if (valid_nbr == 1) {
             units[vec_out].push_back(bisected[0]);
-            mutex_add(mutex[1], data[box_id].nbr_pushed, 1);// substract add 1
+            mutex_add(mutex[box_id+query_size], data[box_id].nbr_pushed, 1);// substract add 1
+            //std::cout<<"###pushed 1, vec_out "<<vec_out<<" size "<<units[vec_out].size()<<std::endl;
           }
           if (valid_nbr == 2) {
             units[vec_out].push_back(bisected[0]);
             units[vec_out].push_back(bisected[1]);
-            mutex_add(mutex[1], data[box_id].nbr_pushed, 2);// substract add 1
+            mutex_add(mutex[box_id+query_size], data[box_id].nbr_pushed, 2);// substract add 1
+            //std::cout<<"###pushed 2, vec_out "<<vec_out<<" size "<<units[vec_out].size()<<std::endl;
+          }
+          if (data[box_id].nbr_pushed >
+              UNIT_SIZE) { // if heap overflow happens, we regard it as having
+                           // root
+            mutex_equal(mutex[box_id], data[box_id].sure_have_root,
+                        1); // TODO remove this to make sure the queue is usable
+                            // for next stage
           }
         }
       }
-      if (data[box_id].nbr_pushed >
-          UNIT_SIZE) { // if heap overflow happens, we regard it as having root
-        mutex_equal(mutex[0], data[box_id].sure_have_root, 1);// TODO remove this to make sure the queue is usable for next stage
-      }
+      
     }
 void memory_pool_ccd_run(
     const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge,
     std::vector<int> &result_list, double &run_time,
     std::vector<Scalar> &time_impact, int parallel_nbr) {
   std::cout << "runnin CPU parallization" << std::endl;
+  
   ccd::Timer timer;
+  
   int query_size=V.size();
   result_list.resize(V.size());
   
@@ -386,7 +384,7 @@ void memory_pool_ccd_run(
   config.mp_end = query_size - 1; // the initialized trunk is from 0 to nbr-1;
   config.mp_status = true; // in the begining, start < end
   config.not_empty = 0;
-  std::vector<tbb::mutex> mutexes(3);
+  std::vector<tbb::mutex> mutexes(query_size*2);
   int nbr_itr=0;
   // now initialize the CCDData and the units.
   tbb::parallel_for( tbb::blocked_range<int>(0,query_size),
@@ -399,71 +397,63 @@ void memory_pool_ccd_run(
             compute_vf_tolerance_and_error_bound_memory_pool(data[i], config);
         }
     });
-  while(1){
-  // check if the queue is empty
-    // do sth
-    int remain_unit_size=units[vec_in].size();
-    if(remain_unit_size==0){
+    //std::cout<<"initialized"<<std::endl;
+    int max_queue_size=0;
+    timer.start();
+  while (1) {
+    // check if the queue is empty
+    int remain_unit_size = units[vec_in].size();
+    max_queue_size=std::max(max_queue_size,remain_unit_size);
+    //std::cout<<"remain_unit_size "<<remain_unit_size<<std::endl;
+    //std::cout<<"## remain_unit_size "<<remain_unit_size<<" itr "<<nbr_itr<<" while checking vec_in "<<vec_in<<std::endl;
+    if (remain_unit_size == 0) {
       break;
     }
-    units[vec_out].resize(0);
-    tbb::parallel_for( tbb::blocked_range<int>(0,remain_unit_size),
-                       [&](tbb::blocked_range<int> r)
-    {
-        for (int i=r.begin(); i<r.end(); ++i)
-        {
-          vf_ccd_memory_pool_parallel(units,data,config,result_list,vec_in,i,mutexes,nbr_itr);
-        }
-    });
-    vec_in=!bool(vec_in);
+    
+    units[vec_out].clear();// clear the out units
+    tbb::parallel_for(tbb::blocked_range<int>(0, remain_unit_size),
+                      [&](tbb::blocked_range<int> r) {
+                        for (int i = r.begin(); i < r.end(); ++i) {
+                          vf_ccd_memory_pool_parallel(units, data, config,
+                                                      result_list, vec_in, i,
+                                                      mutexes, nbr_itr);
+                        }
+                      });// read from in, write to out
+    //std::cout<<"itr "<<nbr_itr<<" finished"<<std::endl;
+    
+    vec_out = vec_in;
+    vec_in = !bool(vec_out);// switch in and out, now the out contains the old queue
+    //std::cout<<"out "<<vec_out<<" in "<<vec_in<<std::endl;
     nbr_itr++;
-    if(nbr_itr>100){
+    if (nbr_itr > UNIT_SIZE+10) {
+      //std::cout<<"WARNING the queue should be empty, this should not happen!!!!"<<std::endl;
       break;
     }
-
   }
 
   // get the results
-  tbb::parallel_for( tbb::blocked_range<int>(0,query_size),
-                       [&](tbb::blocked_range<int> r)
-    {
-        for (int i=r.begin(); i<r.end(); ++i)
-        {
-          result_list[i]=data[i].sure_have_root;// TODO deal with the remained blocks in the current unit list
-        }
-    });
-
-  timer.start();
-#ifdef RUN_TBB_PARALLIZATION
   tbb::parallel_for(
-      tbb::blocked_range<int>(0, V.size()), [&](tbb::blocked_range<int> r) {
-        for (int i = r.begin(); i < r.end(); ++i)
-#else
-  for (int i = 0; i < V.size(); ++i)
-#endif
-        {
-          CCDdata data = array_to_ccd(V[i], is_edge);
-          CCDConfig config;
-          config.err_in[0] = -1; // the input error bound calculate from the
-                                 // AABB of the whole mesh
-          config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
-          config.max_t = 1;     // the upper bound of the time interval
-          config.max_itr = 1e6; // the maximal nbr of iterations
-          CCDOut out;
-
-          if (is_edge) {
-            edgeEdgeCCD(data, config, out);
-            result_list[i] = int(out.result);
-            ;
-          } else {
-            vertexFaceCCD(data, config, out);
-            result_list[i] = int(out.result);
-          }
+      tbb::blocked_range<int>(0, query_size), [&](tbb::blocked_range<int> r) {
+        for (int i = r.begin(); i < r.end(); ++i) {
+          result_list[i] =
+              data[i].sure_have_root; // TODO deal with the remained blocks in
+                                      // the current unit list
         }
-
-#ifdef RUN_TBB_PARALLIZATION
       });
-#endif
+  // if (units[vec_out].size() > 0) {
+  //   tbb::mutex final_mutex;
+  //   tbb::parallel_for(
+  //       tbb::blocked_range<int>(0, units[vec_out].size()), [&](tbb::blocked_range<int> r) {
+  //         for (int i = r.begin(); i < r.end(); ++i) {
+  //           if()
+  //           result_list[i] =
+  //               data[i].sure_have_root; // TODO deal with the remained blocks in
+  //                                       // the current unit list
+  //         }
+  //       });
+  // }
+
+  
   timer.stop();
   run_time = timer.getElapsedTimeInMicroSec();
   int trues = 0;
@@ -472,6 +462,98 @@ void memory_pool_ccd_run(
       trues++;
     }
   }
-  std::cout << "THE number of returned trues" << trues << std::endl;
+  std::cout<<"maximal queue size "<<max_queue_size<<std::endl;
+  std::cout << "THE number of returned trues " << trues << std::endl<<std::endl;;
   return;
+}
+// input: "refine" is the number of iterations out side this function
+void vf_ccd_memory_pool_parallel_narrow_phase( // parallel with different unit_id
+    std::array<tbb::concurrent_vector<MP_unit>, 2> &units,
+    std::vector<CCDdata> &data, CCDConfig &config, std::vector<int> &results,
+    int vec_in, int unit_id, std::vector<tbb::mutex> &mutex, int refine) {
+  bool no_need_check = false;
+  int vec_out = !bool(vec_in);
+  int box_id = units[vec_in][unit_id].query_id;
+  int query_size = data.size();
+  if (data[box_id].sure_have_root >
+      0) { // if it is sure that have root, then no need to check
+    no_need_check = true;
+  }
+  Scalar widths[3];
+  bool condition;
+  int split;
+  // mind here we do not need to set last_round_has_root status
+  // because we can get the info by checking the units
+
+  if (!no_need_check) { // if need check, and the for loop
+                        // is not broken, do the check
+    bool zero_in = Origin_in_vf_inclusion_function_memory_pool(
+        data[box_id], units[vec_in][unit_id]);
+    mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+              -1); // queue size-=1
+    if (zero_in) {
+      // std::cout<<"###have root"<<std::endl;
+      widths[0] = units[vec_in][unit_id].itv[0].second -
+                  units[vec_in][unit_id].itv[0].first;
+      widths[1] = units[vec_in][unit_id].itv[1].second -
+                  units[vec_in][unit_id].itv[1].first;
+      widths[2] = units[vec_in][unit_id].itv[2].second -
+                  units[vec_in][unit_id].itv[2].first;
+
+      // Condition 1
+      condition = widths[0] <= data[box_id].tol[0] &&
+                  widths[1] <= data[box_id].tol[1] &&
+                  widths[2] <= data[box_id].tol[2];
+      if (condition) {
+
+        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+      }
+      // Condition 2, the box is inside the epsilon box, have a root, return
+      // true;
+      condition = units[vec_in][unit_id].box_in;
+      if (condition) {
+        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+      }
+
+      // Condition 3, real tolerance is smaller than the input tolerance,
+      // return true
+      condition = units[vec_in][unit_id].true_tol <= config.co_domain_tolerance;
+      if (condition) {
+        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+      }
+      split_dimension_memory_pool(data[box_id], widths, split);
+      MP_unit bisected[2];
+      int valid_nbr;
+      bisect_vf_memory_pool(units[vec_in][unit_id], split, config, bisected,
+                            valid_nbr);
+
+      bisected[0].query_id = box_id;
+      bisected[1].query_id = box_id;
+      if (valid_nbr == 0) { // in this case, the interval is too small that
+                            // overflow happens. it should be rare to happen
+        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+      }
+      if (valid_nbr == 1) {
+        units[vec_out].push_back(bisected[0]);
+        mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+                  1); // substract add 1
+        // std::cout<<"###pushed 1, vec_out "<<vec_out<<" size
+        // "<<units[vec_out].size()<<std::endl;
+      }
+      if (valid_nbr == 2) {
+        units[vec_out].push_back(bisected[0]);
+        units[vec_out].push_back(bisected[1]);
+        mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+                  2); // substract add 1
+        // std::cout<<"###pushed 2, vec_out "<<vec_out<<" size
+        // "<<units[vec_out].size()<<std::endl;
+      }
+      if (data[box_id].nbr_pushed > UNIT_SIZE) { // if heap overflow happens, we
+                                                 // regard it as having root
+        mutex_equal(mutex[box_id], data[box_id].sure_have_root,
+                    1); // TODO remove this to make sure the queue is usable
+                        // for next stage
+      }
+    }
+  }
 }

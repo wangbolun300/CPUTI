@@ -7,11 +7,12 @@
 
 //#define GPUTI_USE_DOUBLE_PRECISION
 // #define RUN_TBB_PARALLIZATION //TODO please disable timer when running
-// parallel #define GPUTI_GO_DEAP_HEAP
-static const int TESTING_ID = 392; // 219064;
-static const int TEST_SIZE = 1;
+// parallel 
+// #define GPUTI_GO_DEAP_HEAP
+static const int TESTING_ID = 219064;
+static const int TEST_SIZE = 1e6;
 static const int TEST_NBR_QUERIES =
-    1e9; // set as large as possible to avoid truncation of reading data
+ 1e9; // set as large as possible to avoid truncation of reading data
 #define NO_CHECK_MS
 #define CALCULATE_ERROR_BOUND
 #define TIME_UPPER_IS_ONE
@@ -162,7 +163,7 @@ public:
   void calculate_tuv(const BoxCompute &box);
   void calculate_tuv(const MP_unit &unit);
 };
-Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp);
+
 class CCDdata {
 public:
   CCDdata(){};
@@ -205,3 +206,5 @@ public:
 };
 CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge);
 void single_test_wrapper(CCDdata *vfdata, bool &result);
+Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp);
+bool sum_no_larger_1(const Scalar &num1, const Scalar &num2);

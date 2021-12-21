@@ -247,7 +247,9 @@ void run_rational_data_single_method_parallel(
     for (int i = 0; i < tmp_nbr; i++) {
       tmp_queries[i] = queries[start_id + i];
     }
-    all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois,
+    // all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois,
+    //             parallel);
+    memory_pool_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois,
                 parallel);
 
     tavg += tmp_tall;
@@ -283,20 +285,20 @@ void run_rational_data_single_method_parallel(
   std::cout << "num_false_negatives " << num_false_negatives << std::endl;
   total_number = size;
   if (WRITE_STATISTIC) {
-    write_summary(folder + "method" + std::to_string(int(2021)) +
-                      "_is_edge_edge_" + std::to_string(is_edge_edge) + "_" +
-                      std::to_string(total_number) + tail + ".csv",
-                  2021, total_number, total_positives, is_edge_edge,
-                  num_false_positives, num_false_negatives, tavg, time_lower,
-                  time_upper);
+    // write_summary(folder + "method" + std::to_string(int(2021)) +
+    //                   "_is_edge_edge_" + std::to_string(is_edge_edge) + "_" +
+    //                   std::to_string(total_number) + tail + ".csv",
+    //               2021, total_number, total_positives, is_edge_edge,
+    //               num_false_positives, num_false_negatives, tavg, time_lower,
+    //               time_upper);
   }
 
   if (1) {
     std::vector<std::string> titles;
-    write_csv(folder + "method" + std::to_string(int(2021)) + "_is_edge_edge_" +
-                  std::to_string(is_edge_edge) + "_" +
-                  std::to_string(total_number) + "_tois" + tail + ".csv",
-              titles, tois, true);
+    // write_csv(folder + "method" + std::to_string(int(2021)) + "_is_edge_edge_" +
+    //               std::to_string(is_edge_edge) + "_" +
+    //               std::to_string(total_number) + "_tois" + tail + ".csv",
+    //           titles, tois, true);
 
     // write_csv(folder + "method" + std::to_string(int(2021)) +
     // "_is_edge_edge_" + std::to_string(is_edge_edge) + "_" +
