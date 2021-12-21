@@ -7,12 +7,12 @@
 
 //#define GPUTI_USE_DOUBLE_PRECISION
 // #define RUN_TBB_PARALLIZATION //TODO please disable timer when running
-// parallel 
+// parallel
 // #define GPUTI_GO_DEAP_HEAP
 static const int TESTING_ID = 219064;
 static const int TEST_SIZE = 1e6;
 static const int TEST_NBR_QUERIES =
- 1e9; // set as large as possible to avoid truncation of reading data
+    1e9; // set as large as possible to avoid truncation of reading data
 #define NO_CHECK_MS
 #define CALCULATE_ERROR_BOUND
 #define TIME_UPPER_IS_ONE
@@ -56,10 +56,6 @@ public:
 
 typedef int ptest[5];
 
-
-
-
-
 void print_vector(Scalar *v, int size);
 void print_vector(int *v, int size);
 
@@ -93,7 +89,7 @@ public:
   Scalar true_tol;
   bool box_in;
 
-void init(int i) {
+  void init(int i) {
     itv[0].first = 0;
     itv[0].second = 1;
     itv[1].first = 0;
@@ -103,7 +99,7 @@ void init(int i) {
     query_id = i;
     box_in = true;
   }
-MP_unit &operator=(const MP_unit &x) {
+  MP_unit &operator=(const MP_unit &x) {
     if (this == &x)
       return *this;
     itv[0] = x.itv[0];
@@ -184,8 +180,8 @@ public:
   int last_round_has_root_record =
       0; // to avoid missing collisions by resetting last_round_has_root
   int sure_have_root;
-  int nbr_pushed = 0;// the length of the current queue
-   CCDdata &operator=(const CCDdata &x) {
+  int nbr_pushed = 0; // the length of the current queue
+  CCDdata &operator=(const CCDdata &x) {
     if (this == &x)
       return *this;
     for (int i = 0; i < 3; i++) {
