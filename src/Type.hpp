@@ -121,7 +121,7 @@ public:
   Scalar co_domain_tolerance; // tolerance of the co-domain
   Scalar max_t;               // the upper bound of the time interval
   int max_itr;                // the maximal nbr of iterations
-  unsigned int mp_end;
+  int mp_end;
   int mp_status = 1; // when true, it means that no overflow happens
   int not_empty;
 };

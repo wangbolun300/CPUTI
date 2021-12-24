@@ -2,7 +2,7 @@
 #include <cputi/queue.h>
 #include <cputi/root_finder.h>
 #include <iostream>
-
+#include <float.h>
 double time_heap_vf = 0;
 
 CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge) {
@@ -37,10 +37,16 @@ interval_pair::interval_pair(const Singleinterval &itv) {
 
 // TODO need to calculate error bound
 bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
-  if (num1 + num2 <= 1) {
-    return true;
+#ifdef GPUTI_USE_DOUBLE_PRECISION
+  if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
+    return false;
   }
-  return false;
+#else
+  if (num1 + num2 > 1 / (1 - FLT_EPSILON)) {
+    return false;
+  }
+#endif
+  return true;
 }
 
 void compute_face_vertex_tolerance(const CCDdata &data_in,
@@ -485,5 +491,3 @@ void vertexFaceCCD(const CCDdata &data_in, const CCDConfig &config,
 }
 
 double return_time_vf() { return time_heap_vf; }
-
-
