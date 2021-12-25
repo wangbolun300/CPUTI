@@ -4,10 +4,12 @@
 #include <cputi/CType.hpp>
 #include <limits>
 #include <utility>
+#include <atomic>
 
 //#define GPUTI_USE_DOUBLE_PRECISION
 // #define RUN_TBB_PARALLIZATION //TODO please disable timer when running
 // parallel
+//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
 // #define GPUTI_GO_DEAP_HEAP
 static const int TESTING_ID = 219064;
 static const int TEST_SIZE = 1e6;
@@ -121,7 +123,7 @@ public:
   Scalar co_domain_tolerance; // tolerance of the co-domain
   Scalar max_t;               // the upper bound of the time interval
   int max_itr;                // the maximal nbr of iterations
-  int mp_end;
+  std::atomic<int> mp_end;
   int mp_status = 1; // when true, it means that no overflow happens
   int not_empty;
 };

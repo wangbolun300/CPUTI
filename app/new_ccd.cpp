@@ -143,6 +143,7 @@ bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
   Scalar vmin = SCALAR_LIMIT;
   Scalar vmax = -SCALAR_LIMIT;
   Scalar value;
+  
   for (bp.dim = 0; bp.dim < 3; bp.dim++) {
     vmin = SCALAR_LIMIT;
     vmax = -SCALAR_LIMIT;
@@ -156,9 +157,11 @@ bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
           value = calculate_vf(data_in, bp);
           vmin = min(vmin, value);
           vmax = max(vmax, value);
+          
         }
       }
     }
+    
 
     // get the min and max in one dimension
     unit.true_tol =
@@ -292,7 +295,8 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 
   if (!no_need_check) { // if need check, and the for loop
                         // is not broken, do the check
-    bool zero_in = Origin_in_vf_inclusion_function_memory_pool(
+    bool zero_in;
+    zero_in = Origin_in_vf_inclusion_function_memory_pool(
         data[box_id], units[vec_in][unit_id]);
     mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
               -1); // queue size-=1
@@ -319,7 +323,6 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
       if (condition) {
         mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
-
       // Condition 3, real tolerance is smaller than the input tolerance,
       // return true
       condition = units[vec_in][unit_id].true_tol <= config.co_domain_tolerance;
@@ -339,21 +342,18 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
         mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
       if (valid_nbr == 1) {
-        //units[vec_out].push_back(bisected[0]);
-        int push_id=mutex_add_1(qmutex,config.mp_end);
-        units[vec_out][push_id]=bisected[0];
+        
+        int push_id=config.mp_end++;
+        units[vec_out][push_id+1]=bisected[0];
         mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
                   1); // substract add 1
-        // std::cout<<"###pushed 1, vec_out "<<vec_out<<" size
-        // "<<units[vec_out].size()<<std::endl;
       }
       if (valid_nbr == 2) {
-        // units[vec_out].push_back(bisected[0]);
-        // units[vec_out].push_back(bisected[1]);
-        int push_id=mutex_add_1(qmutex,config.mp_end);
-        units[vec_out][push_id]=bisected[0];
-        push_id=mutex_add_1(qmutex,config.mp_end);
-        units[vec_out][push_id]=bisected[1];
+        
+        int push_id=config.mp_end++;
+        units[vec_out][push_id+1]=bisected[0];
+        push_id=config.mp_end++;
+       units[vec_out][push_id+1]=bisected[1];
 
         mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
                   2); // substract add 1
@@ -389,8 +389,8 @@ void memory_pool_ccd_run(
   results.resize(query_size);
   int vec_in = 0; // the id of the input vec, switch between 0 and 1
   int vec_out = 1;
-  units[vec_in].resize(query_size);
-
+  units[vec_in].resize(query_size*2);
+units[vec_out].resize(query_size*2); // set the capicity of the output queue as twice large as the input
   CCDConfig config;
   config.err_in[0] =
       -1; // the input error bound calculate from the AABB of the whole mesh
@@ -428,7 +428,7 @@ void memory_pool_ccd_run(
       break;
     }
     config.mp_end=-1;// clear the output queue
-    units[vec_out].resize(remain_unit_size*2); // set the capicity of the output queue as twice large as the input
+    
     tbb::parallel_for(tbb::blocked_range<int>(0, remain_unit_size),
                       [&](tbb::blocked_range<int> r) {
                         for (int i = r.begin(); i < r.end(); ++i) {
@@ -438,10 +438,10 @@ void memory_pool_ccd_run(
                         }
                       }); // read from in, write to out
     // std::cout<<"itr "<<nbr_itr<<" finished"<<std::endl;
-// timer.stop();
-//   run_time = timer.getElapsedTimeInMicroSec();
-//   std::cout<<"timing temp "<<run_time<<std::endl;
-//   exit(0);
+timer.stop();
+  run_time = timer.getElapsedTimeInMicroSec();
+  std::cout<<"timing temp "<<run_time<<std::endl;
+  exit(0);
     vec_out = vec_in;
     vec_in =
         !bool(vec_out); // switch in and out, now the out contains the old queue
