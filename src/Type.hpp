@@ -5,6 +5,7 @@
 #include <limits>
 #include <utility>
 #include <atomic>
+#include <float.h>
 
 //#define GPUTI_USE_DOUBLE_PRECISION
 // #define RUN_TBB_PARALLIZATION //TODO please disable timer when running
@@ -48,7 +49,14 @@ public:
 
 class interval_pair {
 public:
-  interval_pair(const Singleinterval &itv);
+// this function do the bisection
+inline  interval_pair(const Singleinterval &itv){
+    Scalar c = (itv.first + itv.second) / 2;
+  first.first = itv.first;
+  first.second = c;
+  second.first = c;
+  second.second = itv.second;
+  };
   interval_pair(){};
   Singleinterval first;
   Singleinterval second;
@@ -182,7 +190,7 @@ public:
   int last_round_has_root_record =
       0; // to avoid missing collisions by resetting last_round_has_root
   int sure_have_root;
-  int nbr_pushed = 0; // the length of the current queue
+  int nbr_pushed; // the length of the current queue
   CCDdata &operator=(const CCDdata &x) {
     if (this == &x)
       return *this;
@@ -199,10 +207,43 @@ public:
       tol[i] = x.tol[i];
     }
     ms = x.ms;
+    err[0]=x.err[0];
+    err[1]=x.err[1];
+    err[2]=x.err[2];
+    tol[0]=x.tol[0];
+    tol[1]=x.tol[1];
+    tol[2]=x.tol[2];
+    last_round_has_root=x.last_round_has_root;
+    last_round_has_root_record=x.last_round_has_root_record;
+    sure_have_root=x.sure_have_root;
+    nbr_pushed=x.nbr_pushed;
+    //nbr_pushed.load(x.nbr_pushed);
+    // int tmp=x.nbr_pushed;
+    // nbr_pushed=tmp;
+
     return *this;
   }
 };
 CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge);
 void single_test_wrapper(CCDdata *vfdata, bool &result);
-Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp);
-bool sum_no_larger_1(const Scalar &num1, const Scalar &num2);
+inline Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp){
+  Scalar v, pt, t0, t1, t2;
+  v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+  t0 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+  t1 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+  t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+  pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
+  return (v - pt);
+}
+inline bool sum_no_larger_1(const Scalar &num1, const Scalar &num2){
+  #ifdef GPUTI_USE_DOUBLE_PRECISION
+  if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
+    return false;
+  }
+#else
+  if (num1 + num2 > 1 / (1 - FLT_EPSILON)) {
+    return false;
+  }
+#endif
+  return true;
+}

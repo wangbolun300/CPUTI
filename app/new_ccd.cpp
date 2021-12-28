@@ -137,7 +137,7 @@ void BoxPrimatives::calculate_tuv(const MP_unit &unit) {
     v = unit.itv[2].second;
   }
 }
-bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
+inline bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
                                                  MP_unit &unit) {
   BoxPrimatives bp;
   Scalar vmin = SCALAR_LIMIT;
@@ -209,7 +209,7 @@ int mutex_increase(tbb::mutex &mutex, int &a, const int size) {
   return result;
 }
 
-void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
+inline void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
                                  int &split) { // clarified in queue.h
   Scalar res[3];
   res[0] = width[0] / data.tol[0];
@@ -226,10 +226,11 @@ void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
   }
 }
 
-void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
+inline void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
                            MP_unit bisected[2], int &valid_nbr) {
+  
   interval_pair halves(unit.itv[split]); // bisected
-
+  
   if (halves.first.first >= halves.first.second) {
     valid_nbr = 0;
     return;
@@ -238,11 +239,12 @@ void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
     valid_nbr = 0;
     return;
   }
+  
   bisected[0] = unit;
   bisected[1] = unit;
   valid_nbr = 1;
   bisected[0].itv[split] = halves.first;
-
+  
   if (split == 0) {
     if (config.max_t != 1) {
       if (halves.second.first <= config.max_t) {
@@ -254,6 +256,7 @@ void bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &config,
       valid_nbr = 2;
     }
   }
+  
   if (split == 1) {
     if (sum_no_larger_1(halves.second.first,
                         bisected[1].itv[2].first)) // check if u+v<=1
@@ -290,84 +293,100 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
   Scalar widths[3];
   bool condition;
   int split;
+  //bool sure_have_root=false; //this is just for debugging
+  //CCDdata *local_data=&data[box_id];
+
   // mind here we do not need to set last_round_has_root status
   // because we can get the info by checking the units
 
   if (!no_need_check) { // if need check, and the for loop
                         // is not broken, do the check
     bool zero_in;
+    MP_unit temp_unit= units[vec_in][unit_id];
     zero_in = Origin_in_vf_inclusion_function_memory_pool(
-        data[box_id], units[vec_in][unit_id]);
-    mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-              -1); // queue size-=1
+        data[box_id], temp_unit);
+    // mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+    //           -1); // queue size-=1
+    
     if (zero_in) {
       // std::cout<<"###have root"<<std::endl;
-      widths[0] = units[vec_in][unit_id].itv[0].second -
-                  units[vec_in][unit_id].itv[0].first;
-      widths[1] = units[vec_in][unit_id].itv[1].second -
-                  units[vec_in][unit_id].itv[1].first;
-      widths[2] = units[vec_in][unit_id].itv[2].second -
-                  units[vec_in][unit_id].itv[2].first;
+      widths[0] = temp_unit.itv[0].second -
+                  temp_unit.itv[0].first;
+      widths[1] = temp_unit.itv[1].second -
+                  temp_unit.itv[1].first;
+      widths[2] = temp_unit.itv[2].second -
+                  temp_unit.itv[2].first;
 
       // Condition 1
       condition = widths[0] <= data[box_id].tol[0] &&
                   widths[1] <= data[box_id].tol[1] &&
                   widths[2] <= data[box_id].tol[2];
       if (condition) {
-
-        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+        sure_have_root=1; // THIS IS JUST FOR DEBUG
+        //mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
       // Condition 2, the box is inside the epsilon box, have a root, return
       // true;
-      condition = units[vec_in][unit_id].box_in;
+      condition = temp_unit.box_in;
       if (condition) {
-        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+        sure_have_root=1;
+        // mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
       // Condition 3, real tolerance is smaller than the input tolerance,
       // return true
-      condition = units[vec_in][unit_id].true_tol <= config.co_domain_tolerance;
+      condition = temp_unit.true_tol <= config.co_domain_tolerance;
       if (condition) {
-        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+        sure_have_root=1;
+        // mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
+      
       split_dimension_memory_pool(data[box_id], widths, split);
+      
       MP_unit bisected[2];
       int valid_nbr;
-      bisect_vf_memory_pool(units[vec_in][unit_id], split, config, bisected,
+      
+      bisect_vf_memory_pool(temp_unit, split, config, bisected,
                             valid_nbr);
-
+      
       bisected[0].query_id = box_id;
       bisected[1].query_id = box_id;
       if (valid_nbr == 0) { // in this case, the interval is too small that
                             // overflow happens. it should be rare to happen
-        mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+        sure_have_root=1;
+        // mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
       }
       if (valid_nbr == 1) {
         
-        int push_id=config.mp_end++;
-        units[vec_out][push_id+1]=bisected[0];
-        mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-                  1); // substract add 1
+        // int push_id=config.mp_end++;
+        // units[vec_out][push_id+1]=bisected[0];
+        // mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+        //           1); // substract add 1
       }
       if (valid_nbr == 2) {
         
-        int push_id=config.mp_end++;
-        units[vec_out][push_id+1]=bisected[0];
-        push_id=config.mp_end++;
-       units[vec_out][push_id+1]=bisected[1];
+      //   int push_id=config.mp_end++;
+      //   units[vec_out][push_id+1]=bisected[0];
+      //   push_id=config.mp_end++;
+      //  units[vec_out][push_id+1]=bisected[1];
 
-        mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-                  2); // substract add 1
+        // mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
+        //           2); // substract add 1
         // std::cout<<"###pushed 2, vec_out "<<vec_out<<" size
         // "<<units[vec_out].size()<<std::endl;
       }
       if (data[box_id].nbr_pushed > UNIT_SIZE) { // if heap overflow happens, we
                                                  // regard it as having root
-        mutex_equal(mutex[box_id], data[box_id].sure_have_root,
-                    1); // TODO remove this to make sure the queue is usable
-                        // for next stage
+          sure_have_root=1;
+        // mutex_equal(mutex[box_id], data[box_id].sure_have_root,
+        //             1); // TODO remove this to make sure the queue is usable
+        // //                 // for next stage
       }
-    }
+    }//if (!no_need_check)
+    // if(sure_have_root){
+    //   data[box_id].sure_have_root=1;
+    // }
   }
+
 }
 void memory_pool_ccd_run(
     const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge,

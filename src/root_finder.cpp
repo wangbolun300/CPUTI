@@ -2,7 +2,7 @@
 #include <cputi/queue.h>
 #include <cputi/root_finder.h>
 #include <iostream>
-#include <float.h>
+
 double time_heap_vf = 0;
 
 CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge) {
@@ -27,27 +27,27 @@ Singleinterval::Singleinterval(const Scalar &f, const Scalar &s) {
 }
 
 // this function do the bisection
-interval_pair::interval_pair(const Singleinterval &itv) {
-  Scalar c = (itv.first + itv.second) / 2;
-  first.first = itv.first;
-  first.second = c;
-  second.first = c;
-  second.second = itv.second;
-}
+// interval_pair::interval_pair(const Singleinterval &itv) {
+//   Scalar c = (itv.first + itv.second) / 2;
+//   first.first = itv.first;
+//   first.second = c;
+//   second.first = c;
+//   second.second = itv.second;
+// }
 
-// TODO need to calculate error bound
-bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
-#ifdef GPUTI_USE_DOUBLE_PRECISION
-  if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
-    return false;
-  }
-#else
-  if (num1 + num2 > 1 / (1 - FLT_EPSILON)) {
-    return false;
-  }
-#endif
-  return true;
-}
+
+// bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
+// #ifdef GPUTI_USE_DOUBLE_PRECISION
+//   if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
+//     return false;
+//   }
+// #else
+//   if (num1 + num2 > 1 / (1 - FLT_EPSILON)) {
+//     return false;
+//   }
+// #endif
+//   return true;
+// }
 
 void compute_face_vertex_tolerance(const CCDdata &data_in,
                                    const CCDConfig &config, CCDOut &out) {
@@ -177,15 +177,15 @@ void BoxPrimatives::calculate_tuv(const BoxCompute &box) {
     v = box.current_item.itv[2].second;
   }
 }
-Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp) {
-  Scalar v, pt, t0, t1, t2;
-  v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
-  t0 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
-  t1 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
-  t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
-  pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
-  return (v - pt);
-}
+// Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp) {
+//   Scalar v, pt, t0, t1, t2;
+//   v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+//   t0 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+//   t1 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+//   t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+//   pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
+//   return (v - pt);
+// }
 
 bool Origin_in_vf_inclusion_function(const CCDdata &data_in, BoxCompute &box,
                                      CCDOut &out) {
