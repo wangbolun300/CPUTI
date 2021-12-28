@@ -339,11 +339,6 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 	Scalar widths[3];
 	bool condition;
 	int split;
-	// bool sure_have_root = false; // this is just for debugging
-	// CCDdata *local_data=&data[box_id];
-
-	// mind here we do not need to set last_round_has_root status
-	// because we can get the info by checking the units
 
 	MP_unit temp_unit = vec_in[unit_id];
 	const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data[box_id], temp_unit);
@@ -360,28 +355,20 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 		condition = widths[0] <= data[box_id].tol[0] && widths[1] <= data[box_id].tol[1] && widths[2] <= data[box_id].tol[2];
 		if (condition)
 		{
-			// sure_have_root = 1; // THIS IS JUST FOR DEBUG
-			// mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
 			sure_have_root[box_id] = 1;
 			return;
 		}
-		// Condition 2, the box is inside the epsilon box, have a root, return
-		// true;
+		// Condition 2, the box is inside the epsilon box, have a root, return true;
 		condition = temp_unit.box_in;
 		if (condition)
 		{
-			// sure_have_root = 1;
-			// mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
 			sure_have_root[box_id] = 1;
 			return;
 		}
-		// Condition 3, real tolerance is smaller than the input tolerance,
-		// return true
+		// Condition 3, real tolerance is smaller than the input tolerance, return true
 		condition = temp_unit.true_tol <= config.co_domain_tolerance;
 		if (condition)
 		{
-			// sure_have_root = 1;
-			// mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
 			sure_have_root[box_id] = 1;
 			return;
 		}
@@ -395,35 +382,19 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 
 		bisected[0].query_id = box_id;
 		bisected[1].query_id = box_id;
-		if (valid_nbr == 0)
-		{ // in this case, the interval is too small that
-		  // overflow happens. it should be rare to happen
-		  // sure_have_root = 1;
-		  // mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
+		if (valid_nbr == 0) // in this case, the interval is too small that overflow happens. it should be rare to happen
+		{
 			sure_have_root[box_id] = 1;
 			return;
 		}
 		else if (valid_nbr == 1)
 		{
 			vec_out.push_back(bisected[0]);
-			// int push_id = config.mp_end++;
-			// units[vec_out][push_id + 1] = bisected[0];
-			// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-			//           1); // substract add 1
 		}
 		else if (valid_nbr == 2)
 		{
 			vec_out.push_back(bisected[0]);
 			vec_out.push_back(bisected[1]);
-			// int push_id = config.mp_end++;
-			// units[vec_out][push_id + 1] = bisected[0];
-			// push_id = config.mp_end++;
-			// units[vec_out][push_id + 1] = bisected[1];
-
-			// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-			//           2); // substract add 1
-			// std::cout<<"###pushed 2, vec_out "<<vec_out<<" size
-			// "<<units[vec_out].size()<<std::endl;
 		}
 
 		// if (data[box_id].nbr_pushed > UNIT_SIZE)
@@ -434,11 +405,12 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 		// 	//             1); // TODO remove this to make sure the queue is usable
 		// 	// //                 // for next stage
 		// }
-	} // if (!no_need_check)
-	  // if (sure_have_root)
-	  // {
-	  // 	// data[box_id].sure_have_root=1;
-	  // }
+	}
+	// if (!no_need_check)
+	// if (sure_have_root)
+	// {
+	// 	// data[box_id].sure_have_root=1;
+	// }
 }
 
 void memory_pool_ccd_run(
@@ -506,55 +478,55 @@ void memory_pool_ccd_run(
 		{
 			break;
 		}
-		config.mp_end = -1; // clear the output queue
+		// config.mp_end = -1; // clear the output queue
 
 		tbb::parallel_for(tbb::blocked_range<int>(0, remain_unit_size),
 						  [&](tbb::blocked_range<int> r) {
 							  std::vector<MP_unit> &local_storage = storage.local();
+							  local_storage.reserve(remain_unit_size);
 							  for (int i = r.begin(); i < r.end(); ++i)
 							  {
 								  vf_ccd_memory_pool_parallel(units[vec_in], local_storage, data, config,
 															  must_skip, result_list, i,
 															  mutexes, qmutex);
 							  }
-						  }); // read from in, write to out
-							  // std::cout<<"itr "<<nbr_itr<<" finished"<<std::endl;
+						  });
+		// read from in, write to out
+		// std::cout<<"itr "<<nbr_itr<<" finished"<<std::endl;
 		timer.stop();
 		run_time = timer.getElapsedTimeInMicroSec();
 		std::cout << "timing temp " << run_time / 1000 << std::endl;
 
 		timer.start();
-		std::vector<const std::vector<MP_unit> *> tmp;
 		int size = 0;
+		units[vec_out].clear();
 		for (const auto &local_storage : storage)
 		{
-			tmp.emplace_back(&local_storage);
 			size += local_storage.size();
+			units[vec_out].insert(units[vec_out].end(), local_storage.begin(), local_storage.end());
 		}
-
-		units[vec_out] = tbb::parallel_reduce(
-			tbb::blocked_range<int>(0, tmp.size()), std::vector<MP_unit>(),
-			[&](const tbb::blocked_range<int> &r, const std::vector<MP_unit> &v) {
-				std::vector<MP_unit> out = v;
-				for (int i = r.begin(); i != r.end(); ++i)
-					out.insert(out.end(), tmp[i]->begin(), tmp[i]->end());
-				return out;
-			},
-			[](const std::vector<MP_unit> &v1, const std::vector<MP_unit> &v2) {
-				std::vector<MP_unit> out(v1);
-				out.insert(out.end(), v2.begin(), v2.end());
-				return out;
-			});
 
 		timer.stop();
 		run_time = timer.getElapsedTimeInMicroSec();
 		std::cout << "timing merge " << run_time / 1000 << " size=" << size << "/" << units[vec_out].size() << std::endl;
 
+		timer.start();
+
+		// tbb::parallel_sort
+		// std::sort
+		tbb::parallel_sort(units[vec_out].begin(), units[vec_out].end(), [](const MP_unit &a, const MP_unit &b) {
+			if (a.query_id == b.query_id)
+				return a.itv[2].first < b.itv[2].first;
+			return a.query_id < b.query_id;
+		});
+		timer.stop();
+		run_time = timer.getElapsedTimeInMicroSec();
+		std::cout << "timing sort " << run_time / 1000 << std::endl;
 		exit(0);
+
 		vec_out = vec_in;
-		vec_in =
-			!bool(vec_out); // switch in and out, now the out contains the old queue
-		// std::cout<<"out "<<vec_out<<" in "<<vec_in<<std::endl;
+		vec_in = !bool(vec_out); // switch in and out, now the out contains the old queue
+
 		nbr_itr++;
 		if (nbr_itr > UNIT_SIZE + 10)
 		{
