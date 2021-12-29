@@ -259,28 +259,26 @@ inline void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
 	}
 }
 
-inline void bisect_vf_memory_pool(MP_unit &unit, int split,
-								  const CCDConfig &config, MP_unit bisected[2],
-								  int &valid_nbr)
+inline bool bisect_vf_memory_pool(MP_unit &unit, int split,
+								  const CCDConfig &config, std::vector<MP_unit> &out)
 {
 
 	interval_pair halves(unit.itv[split]); // bisected
 
 	if (halves.first.first >= halves.first.second)
 	{
-		valid_nbr = 0;
-		return;
+		return true;
 	}
 	if (halves.second.first >= halves.second.second)
 	{
-		valid_nbr = 0;
-		return;
+		return true;
 	}
 
-	bisected[0] = unit;
-	bisected[1] = unit;
-	valid_nbr = 1;
-	bisected[0].itv[split] = halves.first;
+	// bisected[0] = unit;
+	// bisected[1] = unit;
+
+	out.emplace_back(unit);
+	out.back().itv[split] = halves.first;
 
 	if (split == 0)
 	{
@@ -288,37 +286,34 @@ inline void bisect_vf_memory_pool(MP_unit &unit, int split,
 		{
 			if (halves.second.first <= config.max_t)
 			{
-				bisected[1].itv[split] = halves.second;
-				valid_nbr = 2;
+				out.emplace_back(unit);
+				out.back().itv[split] = halves.second;
 			}
 		}
 		else
 		{
-			bisected[1].itv[split] = halves.second;
-			valid_nbr = 2;
+			out.emplace_back(unit);
+			out.back().itv[split] = halves.second;
 		}
 	}
-
-	if (split == 1)
+	else if (split == 1)
 	{
-		if (sum_no_larger_1(halves.second.first,
-							bisected[1].itv[2].first)) // check if u+v<=1
+		if (sum_no_larger_1(halves.second.first, unit.itv[2].first)) // check if u+v<=1
 		{
-
-			bisected[1].itv[1] = halves.second;
-			valid_nbr = 2;
+			out.emplace_back(unit);
+			out.back().itv[1] = halves.second;
 		}
 	}
-	if (split == 2)
+	else if (split == 2)
 	{
-		if (sum_no_larger_1(halves.second.first,
-							bisected[1].itv[1].first)) // check if u+v<=1
+		if (sum_no_larger_1(halves.second.first, unit.itv[1].first)) // check if u+v<=1
 		{
-
-			bisected[1].itv[2] = halves.second;
-			valid_nbr = 2;
+			out.emplace_back(unit);
+			out.back().itv[2] = halves.second;
 		}
 	}
+
+	return false;
 }
 // input: "refine" is the number of iterations out side this function
 //        "qmutex" is the mutex for the queue
@@ -328,22 +323,24 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 	std::vector<int> &sure_have_root, std::vector<int> &results, int unit_id, std::vector<tbb::mutex> &mutex,
 	tbb::mutex &qmutex)
 {
-	const int box_id = vec_in[unit_id].query_id;
-	const int query_size = data_in.size();
-  CCDdata data=data_in[box_id];
+	MP_unit temp_unit = vec_in[unit_id];
+	const int box_id = temp_unit.query_id;
+
 	if (sure_have_root[box_id] > 0)
 	{
 		return;
 	}
 
+	CCDdata data = data_in[box_id];
+	const int query_size = data_in.size();
+
 	Scalar widths[3];
 	bool condition;
 	int split;
 
-	MP_unit temp_unit = vec_in[unit_id];
 	const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data, temp_unit);
 	// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed, -1); // queue size-=1
-  
+
 	if (zero_in)
 	{
 		// std::cout<<"###have root"<<std::endl;
@@ -375,27 +372,27 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 
 		split_dimension_memory_pool(data, widths, split);
 
-		MP_unit bisected[2];
-		int valid_nbr;
+		// MP_unit bisected[2];
+		// int valid_nbr;
 
-		bisect_vf_memory_pool(temp_unit, split, config, bisected, valid_nbr);
+		const bool sure_in = bisect_vf_memory_pool(temp_unit, split, config, vec_out);
 
-		bisected[0].query_id = box_id;
-		bisected[1].query_id = box_id;
-		if (valid_nbr == 0) // in this case, the interval is too small that overflow happens. it should be rare to happen
+		// bisected[0].query_id = box_id;
+		// bisected[1].query_id = box_id;
+		if (sure_in) // in this case, the interval is too small that overflow happens. it should be rare to happen
 		{
 			sure_have_root[box_id] = 1;
 			return;
 		}
-		else if (valid_nbr == 1)
-		{
-			vec_out.push_back(bisected[0]);
-		}
-		else if (valid_nbr == 2)
-		{
-			vec_out.push_back(bisected[0]);
-			vec_out.push_back(bisected[1]);
-		}
+		// else if (valid_nbr == 1)
+		// {
+		// 	vec_out.push_back(bisected[0]);
+		// }
+		// else if (valid_nbr == 2)
+		// {
+		// 	vec_out.push_back(bisected[0]);
+		// 	vec_out.push_back(bisected[1]);
+		// }
 
 		// if (data[box_id].nbr_pushed > UNIT_SIZE)
 		// { // if heap overflow happens, we
