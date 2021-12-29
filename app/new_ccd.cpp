@@ -128,35 +128,35 @@ void compute_vf_tolerance_and_error_bound_memory_pool(CCDdata &data,
 	get_numerical_error_vf_memory_pool(data);
 #endif
 }
-void BoxPrimatives::calculate_tuv(const MP_unit &unit)
-{
-	if (b[0] == 0)
-	{ // t0
-		t = unit.itv[0].first;
-	}
-	else
-	{ // t1
-		t = unit.itv[0].second;
-	}
+// void BoxPrimatives::calculate_tuv(const MP_unit &unit)
+// {
+// 	if (b[0] == 0)
+// 	{ // t0
+// 		t = unit.itv[0].first;
+// 	}
+// 	else
+// 	{ // t1
+// 		t = unit.itv[0].second;
+// 	}
 
-	if (b[1] == 0)
-	{ // u0
-		u = unit.itv[1].first;
-	}
-	else
-	{ // u1
-		u = unit.itv[1].second;
-	}
+// 	if (b[1] == 0)
+// 	{ // u0
+// 		u = unit.itv[1].first;
+// 	}
+// 	else
+// 	{ // u1
+// 		u = unit.itv[1].second;
+// 	}
 
-	if (b[2] == 0)
-	{ // v0
-		v = unit.itv[2].first;
-	}
-	else
-	{ // v1
-		v = unit.itv[2].second;
-	}
-}
+// 	if (b[2] == 0)
+// 	{ // v0
+// 		v = unit.itv[2].first;
+// 	}
+// 	else
+// 	{ // v1
+// 		v = unit.itv[2].second;
+// 	}
+// }
 inline bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
 														MP_unit &unit)
 {
@@ -324,13 +324,13 @@ inline void bisect_vf_memory_pool(MP_unit &unit, int split,
 //        "qmutex" is the mutex for the queue
 void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 	const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
-	const std::vector<CCDdata> &data, CCDConfig &config,
+	const std::vector<CCDdata> &data_in, CCDConfig &config,
 	std::vector<int> &sure_have_root, std::vector<int> &results, int unit_id, std::vector<tbb::mutex> &mutex,
 	tbb::mutex &qmutex)
 {
 	const int box_id = vec_in[unit_id].query_id;
-	const int query_size = data.size();
-
+	const int query_size = data_in.size();
+  CCDdata data=data_in[box_id];
 	if (sure_have_root[box_id] > 0)
 	{
 		return;
@@ -341,9 +341,9 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 	int split;
 
 	MP_unit temp_unit = vec_in[unit_id];
-	const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data[box_id], temp_unit);
+	const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data, temp_unit);
 	// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed, -1); // queue size-=1
-
+  
 	if (zero_in)
 	{
 		// std::cout<<"###have root"<<std::endl;
@@ -352,7 +352,7 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 		widths[2] = temp_unit.itv[2].second - temp_unit.itv[2].first;
 
 		// Condition 1
-		condition = widths[0] <= data[box_id].tol[0] && widths[1] <= data[box_id].tol[1] && widths[2] <= data[box_id].tol[2];
+		condition = widths[0] <= data.tol[0] && widths[1] <= data.tol[1] && widths[2] <= data.tol[2];
 		if (condition)
 		{
 			sure_have_root[box_id] = 1;
@@ -373,7 +373,7 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 			return;
 		}
 
-		split_dimension_memory_pool(data[box_id], widths, split);
+		split_dimension_memory_pool(data, widths, split);
 
 		MP_unit bisected[2];
 		int valid_nbr;

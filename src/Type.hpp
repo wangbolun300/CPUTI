@@ -34,8 +34,8 @@ static const int ITERATION_OVERFLOW = 3;
 
 class Singleinterval {
 public:
-  Singleinterval(){};
-  Singleinterval(const Scalar &f, const Scalar &s);
+  inline Singleinterval(){};
+  inline Singleinterval(const Scalar &f, const Scalar &s);
   Scalar first;
   Scalar second;
   Singleinterval &operator=(const Singleinterval &x) {
@@ -93,6 +93,7 @@ public:
 };
 class MP_unit {
 public:
+  inline MP_unit(){};
   Singleinterval itv[3];
 
   int query_id;
@@ -126,6 +127,7 @@ public:
 
 class CCDConfig {
 public:
+inline CCDConfig(){};
   Scalar err_in[3]; // the input error bound calculate from the AABB of the
                     // whole mesh
   Scalar co_domain_tolerance; // tolerance of the co-domain
@@ -166,13 +168,41 @@ public:
   Scalar t;
   Scalar u;
   Scalar v;
+  inline BoxPrimatives(){};
   void calculate_tuv(const BoxCompute &box);
-  void calculate_tuv(const MP_unit &unit);
+ inline void calculate_tuv(const MP_unit &unit){
+    if (b[0] == 0)
+	{ // t0
+		t = unit.itv[0].first;
+	}
+	else
+	{ // t1
+		t = unit.itv[0].second;
+	}
+
+	if (b[1] == 0)
+	{ // u0
+		u = unit.itv[1].first;
+	}
+	else
+	{ // u1
+		u = unit.itv[1].second;
+	}
+
+	if (b[2] == 0)
+	{ // v0
+		v = unit.itv[2].first;
+	}
+	else
+	{ // v1
+		v = unit.itv[2].second;
+	}
+  };
 };
 
 class CCDdata {
 public:
-  CCDdata(){};
+  inline CCDdata(){};
   // CCDdata(const std::array<std::array<Scalar,3>,8>&input);
   Scalar v0s[3];
   Scalar v1s[3];
@@ -207,12 +237,6 @@ public:
       tol[i] = x.tol[i];
     }
     ms = x.ms;
-    err[0]=x.err[0];
-    err[1]=x.err[1];
-    err[2]=x.err[2];
-    tol[0]=x.tol[0];
-    tol[1]=x.tol[1];
-    tol[2]=x.tol[2];
     last_round_has_root=x.last_round_has_root;
     last_round_has_root_record=x.last_round_has_root_record;
     sure_have_root=x.sure_have_root;
