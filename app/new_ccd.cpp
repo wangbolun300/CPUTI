@@ -495,13 +495,36 @@ void memory_pool_ccd_run(
 		std::cout << "timing temp " << run_time / 1000 << std::endl;
 
 		timer.start();
+		// int size = 0;
+		// units[vec_out].clear();
+		// for (const auto &local_storage : storage)
+		// {
+		// 	size += local_storage.size();
+		// 	units[vec_out].insert(units[vec_out].end(), local_storage.begin(), local_storage.end());
+		// }
+
+		std::vector<const std::vector<MP_unit> *> storages(storage.size());
+		std::vector<int> offsets(storage.size());
+		int index = 0;
 		int size = 0;
-		units[vec_out].clear();
 		for (const auto &local_storage : storage)
 		{
+			offsets[index] = size;
+			storages[index] = &local_storage;
+
 			size += local_storage.size();
-			units[vec_out].insert(units[vec_out].end(), local_storage.begin(), local_storage.end());
+			++index;
 		}
+
+		units[vec_out].resize(size);
+		tbb::parallel_for(0, int(storages.size()), [&](int i) {
+			const auto *storage = storages[i];
+			const int offset = offsets[i];
+			for (int j = 0; j < storage->size(); ++j)
+			{
+				units[vec_out][offset + j] = storage->at(j);
+			}
+		});
 
 		timer.stop();
 		run_time = timer.getElapsedTimeInMicroSec();
