@@ -146,6 +146,7 @@ public:
 	std::atomic<int> mp_end;
 	int mp_status = 1; // when true, it means that no overflow happens
 	int not_empty;
+	Scalar toi;
 };
 
 // the output info
@@ -275,6 +276,16 @@ inline Scalar calculate_vf(const CCDdata &data_in, const BoxPrimatives &bp)
 	t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
 	pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
 	return (v - pt);
+}
+inline Scalar calculate_ee(const CCDdata &data_in, const BoxPrimatives& bp){
+    Scalar edge0_vertex0 = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+    Scalar edge0_vertex1 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+    Scalar edge1_vertex0 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+    Scalar edge1_vertex1 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+    Scalar result=((edge0_vertex1 - edge0_vertex0) * bp.u+ edge0_vertex0)
+                -( (edge1_vertex1 - edge1_vertex0) * bp.v+ edge1_vertex0);
+            
+    return result;
 }
 inline bool sum_no_larger_1(const Scalar &num1, const Scalar &num2)
 {
