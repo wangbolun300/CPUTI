@@ -350,6 +350,12 @@ int mutex_increase(tbb::mutex &mutex, int &a, const int size)
 	return result;
 }
 
+inline void mutex_update_min(tbb::mutex &mutex, Scalar& value, const Scalar& compare){
+	mutex.lock();
+	value = compare < value ? compare : value; // if compare is smaller, update it
+	mutex.unlock();
+}
+
 inline void split_dimension_memory_pool(const CCDdata &data, Scalar width[3],
 										int &split)
 { // clarified in queue.h
@@ -477,8 +483,8 @@ inline bool bisect_ee_memory_pool(MP_unit &unit, int split,
 void ccd_memory_pool_parallel( // parallel with different unit_id
 	const bool is_edge, const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
 	const std::vector<CCDdata> &data_in, CCDConfig &config,
-	std::vector<int> &sure_have_root, std::vector<int> &results, int unit_id, std::vector<tbb::mutex> &mutex,
-	tbb::mutex &qmutex)
+	std::vector<int> &sure_have_root, std::vector<int> &results, int unit_id,
+	tbb::mutex &mutex)
 {
 	MP_unit temp_unit = vec_in[unit_id];
 	const int box_id = temp_unit.query_id;
@@ -494,9 +500,11 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 	Scalar widths[3];
 	bool condition;
 	int split;
-
+	Scalar time_left=temp_unit.itv[0].first;// the time of this unit
+	if (time_left>=config.toi){ // if the time is larger than toi, return
+		return;
+	}
 	const bool zero_in = Origin_in_inclusion_function_memory_pool(data,is_edge, temp_unit);
-	// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed, -1); // queue size-=1
 
 	if (zero_in)
 	{
@@ -509,6 +517,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 		condition = widths[0] <= data.tol[0] && widths[1] <= data.tol[1] && widths[2] <= data.tol[2];
 		if (condition)
 		{
+			mutex_update_min(mutex,config.toi,time_left);
 			sure_have_root[box_id] = 1;
 			return;
 		}
@@ -516,6 +525,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 		condition = temp_unit.box_in;
 		if (condition)
 		{
+			mutex_update_min(mutex,config.toi,time_left);
 			sure_have_root[box_id] = 1;
 			return;
 		}
@@ -523,6 +533,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 		condition = temp_unit.true_tol <= config.co_domain_tolerance;
 		if (condition)
 		{
+			mutex_update_min(mutex,config.toi,time_left);
 			sure_have_root[box_id] = 1;
 			return;
 		}
@@ -542,30 +553,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 			sure_have_root[box_id] = 1;
 			return;
 		}
-		// else if (valid_nbr == 1)
-		// {
-		// 	vec_out.push_back(bisected[0]);
-		// }
-		// else if (valid_nbr == 2)
-		// {
-		// 	vec_out.push_back(bisected[0]);
-		// 	vec_out.push_back(bisected[1]);
-		// }
-
-		// if (data[box_id].nbr_pushed > UNIT_SIZE)
-		// { // if heap overflow happens, we
-		//   // regard it as having root
-		// 	sure_have_root = 1;
-		// 	// mutex_equal(mutex[box_id], data[box_id].sure_have_root,
-		// 	//             1); // TODO remove this to make sure the queue is usable
-		// 	// //                 // for next stage
-		// }
 	}
-	// if (!no_need_check)
-	// if (sure_have_root)
-	// {
-	// 	// data[box_id].sure_have_root=1;
-	// }
 }
 
 void memory_pool_ccd_run(
@@ -600,7 +588,7 @@ void memory_pool_ccd_run(
 	config.mp_end = query_size - 1;    // the initialized trunk is from 0 to nbr-1;
 	config.mp_status = true;           // in the begining, start < end
 	config.not_empty = 0;
-	std::vector<tbb::mutex> mutexes(query_size * 2);
+	config.toi=1;
 	tbb::mutex qmutex;
 	int nbr_itr = 0;
 	tbb::enumerable_thread_specific<std::vector<MP_unit>> storage;
@@ -649,8 +637,7 @@ void memory_pool_ccd_run(
 							  for (int i = r.begin(); i < r.end(); ++i)
 							  {
 								  ccd_memory_pool_parallel(is_edge, units[vec_in], local_storage, data, config,
-															  must_skip, result_list, i,
-															  mutexes, qmutex);
+															  must_skip, result_list, i, qmutex);
 							  }
 						  });
 		// read from in, write to out

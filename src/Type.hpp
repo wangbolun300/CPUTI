@@ -145,6 +145,7 @@ public:
 	std::atomic<int> mp_end;
 	int mp_status = 1; // when true, it means that no overflow happens
 	int not_empty;
+	Scalar toi;
 };
 
 // the output info
