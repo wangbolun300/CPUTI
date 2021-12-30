@@ -117,6 +117,7 @@ public:
 		query_id = i;
 		box_in = true;
 	}
+
 	MP_unit &operator=(const MP_unit &x)
 	{
 		if (this == &x)
@@ -228,13 +229,12 @@ public:
 	Scalar v3e[3];
 	Scalar ms;     // minimum separation
 	Scalar err[3]; // error bound of each query, calculated from each scene
-	Scalar
-		tol[3]; // domain tolerance that helps to decide which dimension to split
-	int last_round_has_root = 0;
-	int last_round_has_root_record =
-		0; // to avoid missing collisions by resetting last_round_has_root
-	int sure_have_root;
-	int nbr_pushed; // the length of the current queue
+	Scalar tol[3]; // domain tolerance that helps to decide which dimension to split
+	// int last_round_has_root = 0;
+	// int last_round_has_root_record = 0; // to avoid missing collisions by resetting last_round_has_root
+	// int sure_have_root;
+	// int nbr_pushed; // the length of the current queue
+	//add number checks
 	CCDdata &operator=(const CCDdata &x)
 	{
 		if (this == &x)
@@ -253,10 +253,10 @@ public:
 			tol[i] = x.tol[i];
 		}
 		ms = x.ms;
-		last_round_has_root = x.last_round_has_root;
-		last_round_has_root_record = x.last_round_has_root_record;
-		sure_have_root = x.sure_have_root;
-		nbr_pushed = x.nbr_pushed;
+		// last_round_has_root = x.last_round_has_root;
+		// last_round_has_root_record = x.last_round_has_root_record;
+		// sure_have_root = x.sure_have_root;
+		// nbr_pushed = x.nbr_pushed;
 		//nbr_pushed.load(x.nbr_pushed);
 		// int tmp=x.nbr_pushed;
 		// nbr_pushed=tmp;
