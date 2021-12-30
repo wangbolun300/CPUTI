@@ -405,9 +405,9 @@ inline bool bisect_vf_memory_pool(MP_unit &unit, int split, const CCDConfig &con
 
 	if (split == 0)
 	{
-		if (config.max_t != 1)
+		if (config.toi != 1)
 		{
-			if (halves.second.first <= config.max_t)
+			if (halves.second.first <= config.toi)
 			{
 				out.emplace_back(unit);
 				out.back().itv[split] = halves.second;
@@ -460,9 +460,9 @@ inline bool bisect_ee_memory_pool(MP_unit &unit, int split,
 
 	if (split == 0) // split the time interval
 	{
-		if (config.max_t != 1)
+		if (config.toi != 1)
 		{
-			if (halves.second.first <= config.max_t)
+			if (halves.second.first <= config.toi)
 			{
 				out.emplace_back(unit);
 				out.back().itv[split] = halves.second;
@@ -505,11 +505,14 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 	Scalar widths[3];
 	bool condition;
 	int split;
-	Scalar time_left = temp_unit.itv[0].first; // the time of this unit
+	const Scalar time_left = temp_unit.itv[0].first; // the time of this unit
+
+	// if the time is larger than toi, return
 	if (time_left >= config.toi)
-	{ // if the time is larger than toi, return
+	{
 		return;
 	}
+
 	const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit);
 
 	if (zero_in)
@@ -583,7 +586,6 @@ void memory_pool_ccd_run(
 	CCDConfig config;
 	config.err_in[0] = -1;             // the input error bound calculate from the AABB of the whole mesh
 	config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
-	config.max_t = 1;                  // the upper bound of the time interval
 	config.max_itr = 1e6;              // the maximal nbr of iterations
 	config.toi = 1;
 	tbb::mutex qmutex;
@@ -603,7 +605,7 @@ void memory_pool_ccd_run(
 	});
 
 	// std::cout<<"initialized"<<std::endl;
-	int max_queue_size = 0;
+
 	timer.start();
 	while (1)
 	{
@@ -623,9 +625,9 @@ void memory_pool_ccd_run(
 				ccd_memory_pool_parallel(is_edge, units[vec_in], local_storage, data, config, result_list, i, qmutex);
 			}
 		});
-		timer.stop();
-		run_time = timer.getElapsedTimeInMicroSec();
-		std::cout << "timing temp " << run_time / 1000 << std::endl;
+		// timer.stop();
+		// run_time = timer.getElapsedTimeInMicroSec();
+		// std::cout << "timing temp " << run_time / 1000 << std::endl;
 
 		// timer.start();
 		std::vector<const std::vector<MP_unit> *> storages(storage.size());
@@ -651,24 +653,24 @@ void memory_pool_ccd_run(
 			}
 		});
 
-		timer.stop();
-		run_time = timer.getElapsedTimeInMicroSec();
-		std::cout << "timing merge " << run_time / 1000 << " size=" << size << "/" << units[vec_out].size() << std::endl;
+		// timer.stop();
+		// run_time = timer.getElapsedTimeInMicroSec();
+		// std::cout << "timing merge " << run_time / 1000 << " size=" << size << "/" << units[vec_out].size() << std::endl;
 
-		timer.start();
+		// timer.start();
 		tbb::parallel_sort(units[vec_out].begin(), units[vec_out].end(), [](const MP_unit &a, const MP_unit &b) {
 			if (a.query_id == b.query_id)
 				return a.itv[0].first < b.itv[0].first;
 			return a.query_id < b.query_id;
 		});
-		timer.stop();
-		run_time = timer.getElapsedTimeInMicroSec();
-		std::cout << "timing sort " << run_time / 1000 << std::endl;
+		// timer.stop();
+		// run_time = timer.getElapsedTimeInMicroSec();
+		// std::cout << "timing sort " << run_time / 1000 << std::endl;
 
 		vec_out = vec_in;
 		vec_in = !bool(vec_out); // switch in and out, now the out contains the old queue
 
-		break;
+		// break;
 	}
 
 	timer.stop();

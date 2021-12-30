@@ -98,15 +98,14 @@ void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V,
 				config.err_in[0] = -1;             // the input error bound calculate from the
 												   // AABB of the whole mesh
 				config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
-				config.max_t = 1;                  // the upper bound of the time interval
-				config.max_itr = 1e6;              // the maximal nbr of iterations
+				// config.max_t = 1;                  // the upper bound of the time interval
+				config.max_itr = 1e6; // the maximal nbr of iterations
 				CCDOut out;
 
 				if (is_edge)
 				{
 					edgeEdgeCCD(data, config, out);
 					result_list[i] = int(out.result);
-					;
 				}
 				else
 				{
