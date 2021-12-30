@@ -14,7 +14,7 @@
 
 #include <vector>
 using namespace std;
-void get_numerical_error_vf_memory_pool(CCDdata &data_in)
+inline void get_numerical_error_vf_memory_pool(CCDdata &data_in)
 {
 	Scalar vffilter;
 
@@ -64,7 +64,58 @@ void get_numerical_error_vf_memory_pool(CCDdata &data_in)
 	data_in.err[2] = zmax * zmax * zmax * vffilter;
 	return;
 }
-void compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
+inline void get_numerical_error_ee_memory_pool(
+    CCDdata &data_in)
+{
+    Scalar vffilter;
+
+#ifdef GPUTI_USE_DOUBLE_PRECISION
+    vffilter = 6.217248937900877e-15;
+#else
+    vffilter = 3.337861e-06;
+#endif
+    Scalar xmax = fabs(data_in.v0s[0]);
+    Scalar ymax = fabs(data_in.v0s[1]);
+    Scalar zmax = fabs(data_in.v0s[2]);
+
+    xmax = std::max(xmax,fabs(data_in.v1s[0]));
+    ymax = std::max(ymax,fabs(data_in.v1s[1]));
+    zmax = std::max(zmax,fabs(data_in.v1s[2]));
+    
+    xmax = std::max(xmax,fabs(data_in.v2s[0]));
+    ymax = std::max(ymax,fabs(data_in.v2s[1]));
+    zmax = std::max(zmax,fabs(data_in.v2s[2]));
+
+    xmax = std::max(xmax,fabs(data_in.v3s[0]));
+    ymax = std::max(ymax,fabs(data_in.v3s[1]));
+    zmax = std::max(zmax,fabs(data_in.v3s[2]));
+
+    xmax = std::max(xmax,fabs(data_in.v0e[0]));
+    ymax = std::max(ymax,fabs(data_in.v0e[1]));
+    zmax = std::max(zmax,fabs(data_in.v0e[2]));
+
+    xmax = std::max(xmax,fabs(data_in.v1e[0]));
+    ymax = std::max(ymax,fabs(data_in.v1e[1]));
+    zmax = std::max(zmax,fabs(data_in.v1e[2]));
+
+    xmax = std::max(xmax,fabs(data_in.v2e[0]));
+    ymax = std::max(ymax,fabs(data_in.v2e[1]));
+    zmax = std::max(zmax,fabs(data_in.v2e[2]));
+
+    xmax = std::max(xmax,fabs(data_in.v3e[0]));
+    ymax = std::max(ymax,fabs(data_in.v3e[1]));
+    zmax = std::max(zmax,fabs(data_in.v3e[2]));
+
+    xmax = std::max(xmax, Scalar(1));
+    ymax = std::max(ymax, Scalar(1));
+    zmax = std::max(zmax, Scalar(1));
+
+    data_in.err[0] = xmax * xmax * xmax * vffilter;
+    data_in.err[1] = ymax * ymax * ymax * vffilter;
+    data_in.err[2] = zmax * zmax * zmax * vffilter;
+    return;
+}
+inline void compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
 											   const CCDConfig &config)
 {
 	Scalar p000[3], p001[3], p011[3], p010[3], p100[3], p101[3], p111[3], p110[3];
@@ -114,8 +165,50 @@ void compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
 	dl *= 3;
 	data_in.tol[2] = config.co_domain_tolerance / dl;
 }
+inline void compute_edge_edge_tolerance_memory_pool(CCDdata &data_in,const CCDConfig& config){
+    Scalar p000[3], p001[3], p011[3], p010[3], p100[3], p101[3], p111[3], p110[3];
+    for(int i=0;i<3;i++){
+        p000[i] = data_in.v0s[i] - data_in.v2s[i]; 
+        p001[i] = data_in.v0s[i] - data_in.v3s[i];
+        p011[i] = data_in.v1s[i] - data_in.v3s[i]; 
+        p010[i] = data_in.v1s[i] - data_in.v2s[i];
+        p100[i] = data_in.v0e[i] - data_in.v2e[i];
+        p101[i] = data_in.v0e[i] - data_in.v3e[i];
+        p111[i] = data_in.v1e[i] - data_in.v3e[i];
+        p110[i] = data_in.v1e[i] - data_in.v2e[i];
+    }
+    Scalar dl=0;
+    for(int i=0;i<3;i++){
+        dl=std::max(dl,fabs(p100[i]-p000[i]));
+        dl=std::max(dl,fabs(p101[i]-p001[i])); 
+        dl=std::max(dl,fabs(p111[i]-p011[i]));
+        dl=std::max(dl,fabs(p110[i]-p010[i]));
+    }
+    dl*=3;
+    data_in.tol[0] = config.co_domain_tolerance / dl;
 
-void compute_vf_tolerance_and_error_bound_memory_pool(CCDdata &data,
+    dl=0;
+    for(int i=0;i<3;i++){
+        dl=std::max(dl,fabs(p010[i]-p000[i]));
+        dl=std::max(dl,fabs(p110[i]-p100[i])); 
+        dl=std::max(dl,fabs(p111[i]-p101[i]));
+        dl=std::max(dl,fabs(p011[i]-p001[i]));
+    }
+    dl*=3;
+    data_in.tol[1] = config.co_domain_tolerance / dl;
+    
+    dl=0;
+    for(int i=0;i<3;i++){
+        dl=std::max(dl,fabs(p001[i]-p000[i]));
+        dl=std::max(dl,fabs(p101[i]-p100[i])); 
+        dl=std::max(dl,fabs(p111[i]-p110[i]));
+        dl=std::max(dl,fabs(p011[i]-p010[i]));
+    }
+    dl*=3;
+    data_in.tol[2] = config.co_domain_tolerance / dl;
+}
+
+inline void compute_vf_tolerance_and_error_bound_memory_pool(CCDdata &data,
 													  const CCDConfig &config)
 {
 	compute_face_vertex_tolerance_memory_pool(data, config);
@@ -126,6 +219,19 @@ void compute_vf_tolerance_and_error_bound_memory_pool(CCDdata &data,
 	data.nbr_pushed = 1; // initially the number of pushed element is 1
 #ifdef CALCULATE_ERROR_BOUND
 	get_numerical_error_vf_memory_pool(data);
+#endif
+}
+inline void compute_ee_tolerance_and_error_bound_memory_pool(CCDdata &data,
+													  const CCDConfig &config)
+{
+	compute_edge_edge_tolerance_memory_pool(data, config);
+
+	data.last_round_has_root = false;
+	data.last_round_has_root_record = false;
+	data.sure_have_root = false;
+	data.nbr_pushed = 1; // initially the number of pushed element is 1
+#ifdef CALCULATE_ERROR_BOUND
+	get_numerical_error_ee_memory_pool(data);
 #endif
 }
 // void BoxPrimatives::calculate_tuv(const MP_unit &unit)
@@ -157,7 +263,7 @@ void compute_vf_tolerance_and_error_bound_memory_pool(CCDdata &data,
 // 		v = unit.itv[2].second;
 // 	}
 // }
-inline bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
+inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge,
 														MP_unit &unit)
 {
 	BoxPrimatives bp;
@@ -179,7 +285,13 @@ inline bool Origin_in_vf_inclusion_function_memory_pool(const CCDdata &data_in,
 					bp.b[1] = j;
 					bp.b[2] = k; // 100
 					bp.calculate_tuv(unit);
-					value = calculate_vf(data_in, bp);
+					if(is_edge){
+						value = calculate_ee(data_in, bp);
+					}
+					else{
+						value = calculate_vf(data_in, bp);
+					}
+					
 					vmin = min(vmin, value);
 					vmax = max(vmax, value);
 				}
@@ -315,10 +427,55 @@ inline bool bisect_vf_memory_pool(MP_unit &unit, int split,
 
 	return false;
 }
+inline bool bisect_ee_memory_pool(MP_unit &unit, int split,
+								  const CCDConfig &config, std::vector<MP_unit> &out){
+    interval_pair halves(unit.itv[split]); // bisected
+
+	if (halves.first.first >= halves.first.second)
+	{
+		return true;
+	}
+	if (halves.second.first >= halves.second.second)
+	{
+		return true;
+	}
+
+	// bisected[0] = unit;
+	// bisected[1] = unit;
+
+	out.emplace_back(unit);
+	out.back().itv[split] = halves.first;
+
+	if (split == 0)// split the time interval
+	{
+		if (config.max_t != 1)
+		{
+			if (halves.second.first <= config.max_t)
+			{
+				out.emplace_back(unit);
+				out.back().itv[split] = halves.second;
+			}
+		}
+		else
+		{
+			out.emplace_back(unit);
+			out.back().itv[split] = halves.second;
+		}
+	}
+	else 
+	{
+		out.emplace_back(unit);
+		out.back().itv[1] = halves.second;
+	}
+	
+
+	return false;
+
+}
 // input: "refine" is the number of iterations out side this function
 //        "qmutex" is the mutex for the queue
-void vf_ccd_memory_pool_parallel( // parallel with different unit_id
-	const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
+void ccd_memory_pool_parallel( // parallel with different unit_id
+	const bool is_edge, const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
 	const std::vector<CCDdata> &data_in, CCDConfig &config,
 	std::vector<int> &sure_have_root, std::vector<int> &results, int unit_id, std::vector<tbb::mutex> &mutex,
 	tbb::mutex &qmutex)
@@ -338,7 +495,7 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 	bool condition;
 	int split;
 
-	const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(data, temp_unit);
+	const bool zero_in = Origin_in_inclusion_function_memory_pool(data,is_edge, temp_unit);
 	// mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed, -1); // queue size-=1
 
 	if (zero_in)
@@ -375,7 +532,8 @@ void vf_ccd_memory_pool_parallel( // parallel with different unit_id
 		// MP_unit bisected[2];
 		// int valid_nbr;
 
-		const bool sure_in = bisect_vf_memory_pool(temp_unit, split, config, vec_out);
+		const bool sure_in = is_edge ? 
+		bisect_ee_memory_pool(temp_unit, split, config, vec_out) : bisect_vf_memory_pool(temp_unit, split, config, vec_out);
 
 		// bisected[0].query_id = box_id;
 		// bisected[1].query_id = box_id;
@@ -455,8 +613,15 @@ void memory_pool_ccd_run(
 						  {
 							  units[vec_in][i].init(i);
 							  data[i] = array_to_ccd(V[i], is_edge);
-							  compute_vf_tolerance_and_error_bound_memory_pool(
-								  data[i], config);
+							  if(is_edge){
+								compute_ee_tolerance_and_error_bound_memory_pool(
+									  data[i], config);
+							  }
+							  else
+							  {
+								  compute_vf_tolerance_and_error_bound_memory_pool(
+									  data[i], config);
+							  }
 						  }
 					  });
 	// std::cout<<"initialized"<<std::endl;
@@ -483,7 +648,7 @@ void memory_pool_ccd_run(
 							  local_storage.reserve(remain_unit_size);
 							  for (int i = r.begin(); i < r.end(); ++i)
 							  {
-								  vf_ccd_memory_pool_parallel(units[vec_in], local_storage, data, config,
+								  ccd_memory_pool_parallel(is_edge, units[vec_in], local_storage, data, config,
 															  must_skip, result_list, i,
 															  mutexes, qmutex);
 							  }
@@ -536,7 +701,7 @@ void memory_pool_ccd_run(
 		// std::sort
 		tbb::parallel_sort(units[vec_out].begin(), units[vec_out].end(), [](const MP_unit &a, const MP_unit &b) {
 			if (a.query_id == b.query_id)
-				return a.itv[2].first < b.itv[2].first;
+				return a.itv[0].first < b.itv[0].first;
 			return a.query_id < b.query_id;
 		});
 		timer.stop();
@@ -596,98 +761,4 @@ void memory_pool_ccd_run(
 			  << std::endl;
 	;
 	return;
-}
-// input: "refine" is the number of iterations out side this function
-void vf_ccd_memory_pool_parallel_narrow_phase( // parallel with different
-											   // unit_id
-	std::array<tbb::concurrent_vector<MP_unit>, 2> &units,
-	std::vector<CCDdata> &data, CCDConfig &config, std::vector<int> &results,
-	int vec_in, int unit_id, std::vector<tbb::mutex> &mutex, int refine)
-{
-	// bool no_need_check = false;
-	// int vec_out = !bool(vec_in);
-	// int box_id = units[vec_in][unit_id].query_id;
-	// int query_size = data.size();
-	// if (data[box_id].sure_have_root >
-	//     0) { // if it is sure that have root, then no need to check
-	//   no_need_check = true;
-	// }
-	// Scalar widths[3];
-	// bool condition;
-	// int split;
-	// // mind here we do not need to set last_round_has_root status
-	// // because we can get the info by checking the units
-
-	// if (!no_need_check) { // if need check, and the for loop
-	//                       // is not broken, do the check
-	//   bool zero_in = Origin_in_vf_inclusion_function_memory_pool(
-	//       data[box_id], units[vec_in][unit_id]);
-	//   mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-	//             -1); // queue size-=1
-	//   if (zero_in) {
-	//     // std::cout<<"###have root"<<std::endl;
-	//     widths[0] = units[vec_in][unit_id].itv[0].second -
-	//                 units[vec_in][unit_id].itv[0].first;
-	//     widths[1] = units[vec_in][unit_id].itv[1].second -
-	//                 units[vec_in][unit_id].itv[1].first;
-	//     widths[2] = units[vec_in][unit_id].itv[2].second -
-	//                 units[vec_in][unit_id].itv[2].first;
-
-	//     // Condition 1
-	//     condition = widths[0] <= data[box_id].tol[0] &&
-	//                 widths[1] <= data[box_id].tol[1] &&
-	//                 widths[2] <= data[box_id].tol[2];
-	//     if (condition) {
-
-	//       mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
-	//     }
-	//     // Condition 2, the box is inside the epsilon box, have a root, return
-	//     // true;
-	//     condition = units[vec_in][unit_id].box_in;
-	//     if (condition) {
-	//       mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
-	//     }
-
-	//     // Condition 3, real tolerance is smaller than the input tolerance,
-	//     // return true
-	//     condition = units[vec_in][unit_id].true_tol <=
-	//     config.co_domain_tolerance; if (condition) {
-	//       mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
-	//     }
-	//     split_dimension_memory_pool(data[box_id], widths, split);
-	//     MP_unit bisected[2];
-	//     int valid_nbr;
-	//     bisect_vf_memory_pool(units[vec_in][unit_id], split, config, bisected,
-	//                           valid_nbr);
-
-	//     bisected[0].query_id = box_id;
-	//     bisected[1].query_id = box_id;
-	//     if (valid_nbr == 0) { // in this case, the interval is too small that
-	//                           // overflow happens. it should be rare to happen
-	//       mutex_equal(mutex[box_id], data[box_id].sure_have_root, 1);
-	//     }
-	//     if (valid_nbr == 1) {
-	//       units[vec_out].push_back(bisected[0]);
-	//       mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-	//                 1); // substract add 1
-	//       // std::cout<<"###pushed 1, vec_out "<<vec_out<<" size
-	//       // "<<units[vec_out].size()<<std::endl;
-	//     }
-	//     if (valid_nbr == 2) {
-	//       units[vec_out].push_back(bisected[0]);
-	//       units[vec_out].push_back(bisected[1]);
-	//       mutex_add(mutex[box_id + query_size], data[box_id].nbr_pushed,
-	//                 2); // substract add 1
-	//       // std::cout<<"###pushed 2, vec_out "<<vec_out<<" size
-	//       // "<<units[vec_out].size()<<std::endl;
-	//     }
-	//     if (data[box_id].nbr_pushed > UNIT_SIZE) { // if heap overflow happens,
-	//     we
-	//                                                // regard it as having root
-	//       mutex_equal(mutex[box_id], data[box_id].sure_have_root,
-	//                   1); // TODO remove this to make sure the queue is usable
-	//                       // for next stage
-	//     }
-	//   }
-	// }
 }
