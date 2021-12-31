@@ -307,15 +307,15 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 		// get the min and max in one dimension
 		unit.true_tol = max(unit.true_tol, vmax - vmin); // this is the real tolerance
 
-		if (vmin > data_in.err[bp.dim] || vmax < -data_in.err[bp.dim])
-		{
-			return false;
-		}
+		if (vmin-data_in.ms > data_in.err[bp.dim] || vmax+data_in.ms < -data_in.err[bp.dim])
+        {
+            return false;
+        }
 
-		if (vmin < -data_in.err[bp.dim] || vmax > data_in.err[bp.dim])
-		{
-			unit.box_in = false;
-		}
+        if (vmin+data_in.ms < -data_in.err[bp.dim] || vmax-data_in.ms > data_in.err[bp.dim])
+        {
+            unit.box_in = false;
+        }
 	}
 	return true;
 }
