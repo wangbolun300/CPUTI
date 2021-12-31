@@ -1,6 +1,7 @@
+#include "Type.hpp"
 #include "timer.hpp"
-#include <cputi/io.h>
-#include <cputi/root_finder.h>
+#include "io.h"
+
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -15,10 +16,10 @@
 #else
 #include <unistd.h>
 #endif
+
 extern std::vector<std::string> simulation_folders, handcrafted_folders;
 
-std::array<std::array<Scalar, 3>, 8>
-substract_ccd(const std::vector<std::array<Scalar, 3>> &data, int nbr)
+std::array<std::array<Scalar, 3>, 8> substract_ccd(const std::vector<std::array<Scalar, 3>> &data, int nbr)
 {
 	std::array<std::array<Scalar, 3>, 8> result;
 	int start = nbr * 8;
@@ -28,6 +29,7 @@ substract_ccd(const std::vector<std::array<Scalar, 3>> &data, int nbr)
 	}
 	return result;
 }
+
 void write_summary(const std::string file, const int method,
 				   const int total_number, const int positives,
 				   const bool is_edge_edge, const int fp, const int fn,
@@ -44,6 +46,7 @@ void write_summary(const std::string file, const int method,
 		 << time_lower << "," << time_upper << std::endl;
 	fout.close();
 }
+
 template <typename T>
 void write_csv(const std::string &file, const std::vector<std::string> titles,
 			   const std::vector<T> data, bool large_info)
@@ -75,60 +78,6 @@ void write_csv(const std::string &file, const std::vector<std::string> titles,
 	}
 
 	fout.close();
-}
-
-void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V,
-				 bool is_edge, std::vector<int> &result_list, double &run_time,
-				 std::vector<Scalar> &time_impact, int parallel_nbr)
-{
-	std::cout << "runnin CPU parallization" << std::endl;
-	Timer timer;
-	result_list.resize(V.size());
-	timer.start();
-#ifdef RUN_TBB_PARALLIZATION
-	tbb::parallel_for(
-		tbb::blocked_range<int>(0, V.size()), [&](tbb::blocked_range<int> r) {
-			for (int i = r.begin(); i < r.end(); ++i)
-#else
-	for (int i = 0; i < V.size(); ++i)
-#endif
-			{
-				CCDdata data = array_to_ccd(V[i], is_edge);
-				CCDConfig config;
-				config.err_in[0] = -1;             // the input error bound calculate from the
-												   // AABB of the whole mesh
-				config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
-				// config.max_t = 1;                  // the upper bound of the time interval
-				config.max_itr = 1e6; // the maximal nbr of iterations
-				CCDOut out;
-
-				if (is_edge)
-				{
-					edgeEdgeCCD(data, config, out);
-					result_list[i] = int(out.result);
-				}
-				else
-				{
-					vertexFaceCCD(data, config, out);
-					result_list[i] = int(out.result);
-				}
-			}
-
-#ifdef RUN_TBB_PARALLIZATION
-		});
-#endif
-	timer.stop();
-	run_time = timer.getElapsedTimeInMicroSec();
-	int trues = 0;
-	for (int i = 0; i < result_list.size(); i++)
-	{
-		if (result_list[i])
-		{
-			trues++;
-		}
-	}
-	std::cout << "THE number of returned trues" << trues << std::endl;
-	return;
 }
 
 bool WRITE_STATISTIC = true;
@@ -175,10 +124,6 @@ void run_rational_data_single_method_parallel(
 			nbr_files++;
 			// std::cout<<"filename "<<filename<<std::endl;
 			// exit(0);
-			if (queries.size() > TEST_NBR_QUERIES)
-			{
-				break;
-			}
 			// all_V = ccd::read_rational_csv(filename, results);
 			// all_V = read_rational_csv_bin(filename, results);
 
@@ -214,10 +159,6 @@ void run_rational_data_single_method_parallel(
 			int v_size = all_V.size() / 8;
 			for (int i = 0; i < v_size; i++)
 			{
-				if (queries.size() > TEST_NBR_QUERIES)
-				{
-					break;
-				}
 				total_number += 1;
 
 				std::array<std::array<Scalar, 3>, 8> V = substract_ccd(all_V, i);
@@ -256,11 +197,11 @@ void run_rational_data_single_method_parallel(
 	result_list.resize(size);
 	tois.resize(size);
 
-	memory_pool_ccd_run(queries, is_edge_edge, result_list, tavg, tois, parallel);
+	double toi = memory_pool_ccd_run(queries, is_edge_edge, tavg);
 
 	tavg /= size;
 	std::cout << "avg time " << tavg << std::endl;
-	std::cout << "avg heap time " << return_time() / size << " " << return_time_vf() / size << std::endl;
+	std::cout << "avg heap time " << tavg / size << " " << tavg / size << std::endl;
 	if (expect_list.size() != size)
 	{
 		std::cout << "size wrong!!!" << std::endl;
@@ -373,6 +314,7 @@ void run_ours_float_for_all_data(int parallel)
 	arg.run_handcrafted_dataset = false;
 	run_one_method_over_all_data(arg, parallel, folder, tail);
 }
+
 int main(int argc, char **argv)
 {
 	int parallel = 0;
