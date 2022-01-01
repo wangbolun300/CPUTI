@@ -1,14 +1,24 @@
 #pragma once
+
 #include <array>
 #include <assert.h>
-#include <cputi/CType.hpp>
 #include <limits>
 #include <utility>
 #include <atomic>
+#include <vector>
 #include <float.h>
+#include <climits>
 
 // #define GPUTI_USE_DOUBLE_PRECISION
 #define CALCULATE_ERROR_BOUND
+
+#ifdef GPUTI_USE_DOUBLE_PRECISION
+typedef double Scalar;
+#define SCALAR_LIMIT DBL_MAX;
+#else
+typedef float Scalar;
+#define SCALAR_LIMIT INT_MAX;
+#endif
 
 // TODO next when spliting time intervals, check if overlaps the current toi,
 // then decide if we push it into the heap the reason of considerting it is that
@@ -33,16 +43,12 @@ public:
 	}
 };
 
-void print_vector(Scalar *v, int size);
-void print_vector(int *v, int size);
-
 class MP_unit
 {
 public:
 	inline MP_unit(){};
 
 	Singleinterval itv[3];
-
 	int query_id;
 
 	void init(int i)
@@ -77,7 +83,7 @@ public:
 	Scalar err_in[3];           // the input error bound calculate from the AABB of the
 								// whole mesh
 	Scalar co_domain_tolerance; // tolerance of the co-domain
-	int max_itr;                // the maximal nbr of iterations
+	// int max_itr;                // the maximal nbr of iterations, TODO not there yet
 	Scalar toi;
 };
 
@@ -138,11 +144,7 @@ public:
 	Scalar ms;     // minimum separation
 	Scalar err[3]; // error bound of each query, calculated from each scene
 	Scalar tol[3]; // domain tolerance that helps to decide which dimension to split
-	// int last_round_has_root = 0;
-	// int last_round_has_root_record = 0; // to avoid missing collisions by resetting last_round_has_root
-	// int sure_have_root;
-	// int nbr_pushed; // the length of the current queue
-	//add number checks
+
 	CCDdata &operator=(const CCDdata &x)
 	{
 		if (this == &x)
@@ -161,46 +163,34 @@ public:
 			tol[i] = x.tol[i];
 		}
 		ms = x.ms;
-		// last_round_has_root = x.last_round_has_root;
-		// last_round_has_root_record = x.last_round_has_root_record;
-		// sure_have_root = x.sure_have_root;
-		// nbr_pushed = x.nbr_pushed;
-		//nbr_pushed.load(x.nbr_pushed);
-		// int tmp=x.nbr_pushed;
-		// nbr_pushed=tmp;
 
 		return *this;
 	}
 };
 
-CCDdata array_to_ccd(std::array<std::array<Scalar, 3>, 8> a, bool is_edge);
-
-void single_test_wrapper(CCDdata *vfdata, bool &result);
-
 inline Scalar calculate_vf(const CCDdata &data_in, const BoxPrimitives &bp)
 {
-	Scalar v, pt, t0, t1, t2;
-	v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
-	t0 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
-	t1 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
-	t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
-	pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
+	const Scalar v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+	const Scalar t0 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+	const Scalar t1 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+	const Scalar t2 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+	const Scalar pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
 	return (v - pt);
 }
 
 inline Scalar calculate_ee(const CCDdata &data_in, const BoxPrimitives &bp)
 {
-	Scalar edge0_vertex0 = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
-	Scalar edge0_vertex1 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
-	Scalar edge1_vertex0 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
-	Scalar edge1_vertex1 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
-	Scalar result = ((edge0_vertex1 - edge0_vertex0) * bp.u + edge0_vertex0)
-					- ((edge1_vertex1 - edge1_vertex0) * bp.v + edge1_vertex0);
+	const Scalar edge0_vertex0 = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+	const Scalar edge0_vertex1 = (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+	const Scalar edge1_vertex0 = (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+	const Scalar edge1_vertex1 = (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+	const Scalar result = ((edge0_vertex1 - edge0_vertex0) * bp.u + edge0_vertex0)
+						  - ((edge1_vertex1 - edge1_vertex0) * bp.v + edge1_vertex0);
 
 	return result;
 }
 
-inline bool sum_no_larger_1(const Scalar &num1, const Scalar &num2)
+inline bool sum_no_larger_1(const Scalar num1, const Scalar num2)
 {
 #ifdef GPUTI_USE_DOUBLE_PRECISION
 	if (num1 + num2 > 1 / (1 - DBL_EPSILON))
@@ -215,3 +205,24 @@ inline bool sum_no_larger_1(const Scalar &num1, const Scalar &num2)
 #endif
 	return true;
 }
+
+//TODO maybe remove (or remove comment)
+class interval_pair
+{
+public:
+	// this function do the bisection
+	inline interval_pair(const Singleinterval &itv)
+	{
+		const Scalar c = (itv.first + itv.second) / 2;
+		first.first = itv.first;
+		first.second = c;
+		second.first = c;
+		second.second = itv.second;
+	};
+	interval_pair(){};
+
+	Singleinterval first;
+	Singleinterval second;
+};
+
+double memory_pool_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double &run_time);
