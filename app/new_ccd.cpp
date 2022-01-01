@@ -233,8 +233,9 @@ inline void compute_ee_tolerance_and_error_bound_memory_pool(CCDdata &data,
 #endif
 }
 
-inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol)
+inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
 {
+	box_in = true;
 	BoxPrimitives bp;
 	Scalar vmin = SCALAR_LIMIT;
 	Scalar vmax = -SCALAR_LIMIT;
@@ -269,8 +270,6 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 			}
 		}
 
-		// get the min and max in one dimension
-		// unit.true_tol = max(unit.true_tol, vmax - vmin); // this is the real tolerance
 		true_tol = vmax - vmin;
 
 		if (vmin - data_in.ms > data_in.err[bp.dim] || vmax + data_in.ms < -data_in.err[bp.dim])
@@ -280,7 +279,7 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 
 		if (vmin + data_in.ms < -data_in.err[bp.dim] || vmax - data_in.ms > data_in.err[bp.dim])
 		{
-			// unit.box_in = false;
+			box_in = false;
 			return true;
 		}
 	}
@@ -406,6 +405,8 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 	int unit_id,
 	tbb::mutex &mutex)
 {
+	//TODO maybe record collision pairs
+
 	const MP_unit temp_unit = vec_in[unit_id];
 	const int box_id = temp_unit.query_id;
 
@@ -424,7 +425,8 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 	//ADD max checks!!!!!
 
 	Scalar true_tol = 0;
-	const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit, true_tol);
+	bool box_in;
+	const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit, true_tol, box_in);
 
 	if (zero_in)
 	{
@@ -440,16 +442,17 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 			mutex_update_min(mutex, config.toi, time_left);
 			return;
 		}
+
 		// Condition 2, the box is inside the epsilon box, have a root, return true;
-		// condition = temp_unit.box_in;
-		// if (condition)
-		// {
-		// 	mutex_update_min(mutex, config.toi, time_left);
-		// 	return;
-		// }
+		if (box_in)
+		{
+			mutex_update_min(mutex, config.toi, time_left);
+			return;
+		}
 		// Condition 3, real tolerance is smaller than the input tolerance, return true
-		// condition = temp_unit.true_tol <= config.co_domain_tolerance;
+
 		condition = true_tol <= config.co_domain_tolerance;
+		//TODO write into an "atomic" if necessary
 		if (condition)
 		{
 			mutex_update_min(mutex, config.toi, time_left);
@@ -465,7 +468,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 
 		if (sure_in) // in this case, the interval is too small that overflow happens. it should be rare to happen
 		{
-			//TODO TOI!!!!
+			mutex_update_min(mutex, config.toi, time_left);
 			return;
 		}
 	}
@@ -510,7 +513,7 @@ double memory_pool_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8
 	CCDConfig config;
 	config.err_in[0] = -1;             // the input error bound calculate from the AABB of the whole mesh
 	config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
-	config.max_itr = 1e6;              // the maximal nbr of iterations
+	// config.max_itr = 1e6;              // the maximal nbr of iterations
 	config.toi = 1;
 	tbb::mutex qmutex;
 
