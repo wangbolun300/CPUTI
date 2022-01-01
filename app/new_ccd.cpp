@@ -233,6 +233,151 @@ inline void compute_ee_tolerance_and_error_bound_memory_pool(CCDdata &data,
 #endif
 }
 
+inline std::array<Scalar, 8> function_ee(
+	const Scalar &a0s,
+	const Scalar &a1s,
+	const Scalar &b0s,
+	const Scalar &b1s,
+	const Scalar &a0e,
+	const Scalar &a1e,
+	const Scalar &b0e,
+	const Scalar &b1e,
+	const std::array<Scalar, 8> &t,
+	const std::array<Scalar, 8> &u,
+	const std::array<Scalar, 8> &v)
+{
+	std::array<Scalar, 8> rst;
+	for (int i = 0; i < 8; i++)
+	{
+		Scalar edge0_vertex0 = (a0e - a0s) * t[i] + a0s;
+		Scalar edge0_vertex1 = (a1e - a1s) * t[i] + a1s;
+		Scalar edge1_vertex0 = (b0e - b0s) * t[i] + b0s;
+		Scalar edge1_vertex1 = (b1e - b1s) * t[i] + b1s;
+
+		Scalar edge0_vertex =
+			(edge0_vertex1 - edge0_vertex0) * u[i]
+			+ edge0_vertex0;
+		Scalar edge1_vertex =
+			(edge1_vertex1 - edge1_vertex0) * v[i]
+			+ edge1_vertex0;
+		rst[i] = edge0_vertex - edge1_vertex;
+	}
+	return rst;
+}
+
+inline std::array<Scalar, 8> function_vf(
+	const Scalar &vs,
+	const Scalar &t0s,
+	const Scalar &t1s,
+	const Scalar &t2s,
+	const Scalar &ve,
+	const Scalar &t0e,
+	const Scalar &t1e,
+	const Scalar &t2e,
+	const std::array<Scalar, 8> &t,
+	const std::array<Scalar, 8> &u,
+	const std::array<Scalar, 8> &v)
+{
+	std::array<Scalar, 8> rst;
+	for (int i = 0; i < 8; i++)
+	{
+		Scalar v = (ve - vs) * t[i] + vs;
+		Scalar t0 = (t0e - t0s) * t[i] + t0s;
+		Scalar t1 = (t1e - t1s) * t[i] + t1s;
+		Scalar t2 = (t2e - t2s) * t[i] + t2s;
+		Scalar pt = (t1 - t0) * u[i]
+					+ (t2 - t0) * v[i] + t0;
+		rst[i] = v - pt;
+	}
+	return rst;
+}
+void convert_tuv_to_array(
+	const MP_unit &unit,
+	std::array<Scalar, 8> &t,
+	std::array<Scalar, 8> &u,
+	std::array<Scalar, 8> &v)
+{
+	// t order: 0,0,0,0,1,1,1,1
+	// u order: 0,0,1,1,0,0,1,1
+	// v order: 0,1,0,1,0,1,0,1
+	Scalar t0 = unit.itv[0].first,
+		   t1 = unit.itv[0].second,
+		   u0 = unit.itv[1].first,
+		   u1 = unit.itv[1].second,
+		   v0 = unit.itv[2].first,
+		   v1 = unit.itv[2].second;
+	t = {{t0, t0, t0, t0, t1, t1, t1, t1}};
+
+	u = {{u0, u0, u1, u1, u0, u0, u1, u1}};
+
+	v = {{v0, v1, v0, v1, v0, v1, v0, v1}};
+}
+
+bool evaluate_bbox_one_dimension_vector_return_tolerance(
+	std::array<Scalar, 8> &t_up,
+	std::array<Scalar, 8> &t_dw,
+	std::array<Scalar, 8> &u_up,
+	std::array<Scalar, 8> &u_dw,
+	std::array<Scalar, 8> &v_up,
+	std::array<Scalar, 8> &v_dw,
+	const CCDdata& data,
+	const int dimension,
+	const bool check_vf,
+	const Scalar eps,
+	const Scalar ms,
+	bool &bbox_in_eps,
+	Scalar &tol)
+{
+#ifdef TIGHT_INCLUSION_USE_TIMER
+	Timer timer;
+#endif
+	std::array<Scalar, 8> vs;
+	int count = 0;
+	bbox_in_eps = false;
+#ifdef TIGHT_INCLUSION_USE_TIMER
+	timer.start();
+#endif
+	if (check_vf)
+	{
+		vs = function_vf(
+			a0s[dimension], a1s[dimension], b0s[dimension], b1s[dimension],
+			a0e[dimension], a1e[dimension], b0e[dimension], b1e[dimension],
+			t_up, t_dw, u_up, u_dw, v_up, v_dw);
+	}
+	else
+	{
+		vs = function_ee(
+			a0s[dimension], a1s[dimension], b0s[dimension], b1s[dimension],
+			a0e[dimension], a1e[dimension], b0e[dimension], b1e[dimension],
+			t_up, t_dw, u_up, u_dw, v_up, v_dw);
+	}
+#ifdef TIGHT_INCLUSION_USE_TIMER
+	timer.stop();
+	time25 += timer.getElapsedTimeInMicroSec();
+
+#endif
+	Scalar minv = vs[0], maxv = vs[0];
+
+	for (int i = 1; i < 8; i++)
+	{
+		if (minv > vs[i])
+		{
+			minv = vs[i];
+		}
+		if (maxv < vs[i])
+		{
+			maxv = vs[i];
+		}
+	}
+	tol = maxv - minv; // this is the real tolerance
+	if (minv - ms > eps || maxv + ms < -eps)
+		return false;
+	if (minv + ms >= -eps && maxv - ms <= eps)
+	{
+		bbox_in_eps = true;
+	}
+	return true;
+}
 inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
 {
 	box_in = true;
@@ -245,6 +390,8 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 	{
 		vmin = SCALAR_LIMIT;
 		vmax = -SCALAR_LIMIT;
+		
+		
 		for (int i = 0; i < 2; i++)
 		{
 			for (int j = 0; j < 2; j++)

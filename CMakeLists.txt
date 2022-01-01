@@ -46,3 +46,10 @@ target_link_libraries(test_bin PUBLIC ${GMP_LIBRARIES})
 
 include(tbb)
 target_link_libraries(test_bin PUBLIC TBB::tbb)
+
+# Figure out AVX level support
+message(STATUS "Searching for AVX...")
+find_package(AVX)
+# Add SSE, AVX, and FMA flags to compiler flags
+string(REPLACE " " ";" SIMD_FLAGS "${AVX_FLAGS}")
+target_compile_options(test_bin PRIVATE ${SIMD_FLAGS})
