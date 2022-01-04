@@ -9,7 +9,7 @@
 
 // #define GPUTI_USE_DOUBLE_PRECISION
 #define CALCULATE_ERROR_BOUND
-
+// #define CPUTICCD_USE_AVX2
 // TODO next when spliting time intervals, check if overlaps the current toi,
 // then decide if we push it into the heap the reason of considerting it is that
 // the limited heap size. token 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

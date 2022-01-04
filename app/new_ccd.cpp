@@ -594,8 +594,11 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 
 	Scalar true_tol = 0;
 	bool box_in;
+#ifdef CPUTICCD_USE_AVX2
 	const bool zero_in = Origin_in_inclusion_function_memory_pool_avx2(data, is_edge, temp_unit, true_tol, box_in);
-
+#else
+	const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit, true_tol, box_in);
+#endif
 	if (zero_in)
 	{
 		// std::cout<<"###have root"<<std::endl;
