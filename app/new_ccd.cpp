@@ -281,17 +281,17 @@ inline std::array<Scalar, 8> function_vf(
 	std::array<Scalar, 8> rst;
 	for (int i = 0; i < 8; i++)
 	{
-		Scalar v = (ve - vs) * t[i] + vs;
+		Scalar ver = (ve - vs) * t[i] + vs;
 		Scalar t0 = (t0e - t0s) * t[i] + t0s;
 		Scalar t1 = (t1e - t1s) * t[i] + t1s;
 		Scalar t2 = (t2e - t2s) * t[i] + t2s;
 		Scalar pt = (t1 - t0) * u[i]
 					+ (t2 - t0) * v[i] + t0;
-		rst[i] = v - pt;
+		rst[i] = ver - pt;
 	}
 	return rst;
 }
-void convert_tuv_to_array(
+inline void convert_tuv_to_array(
 	const MP_unit &unit,
 	std::array<Scalar, 8> &t,
 	std::array<Scalar, 8> &u,
@@ -313,49 +313,34 @@ void convert_tuv_to_array(
 	v = {{v0, v1, v0, v1, v0, v1, v0, v1}};
 }
 
-bool evaluate_bbox_one_dimension_vector_return_tolerance(
-	std::array<Scalar, 8> &t_up,
-	std::array<Scalar, 8> &t_dw,
-	std::array<Scalar, 8> &u_up,
-	std::array<Scalar, 8> &u_dw,
-	std::array<Scalar, 8> &v_up,
-	std::array<Scalar, 8> &v_dw,
+inline bool evaluate_bbox_one_dimension_vector_return_tolerance(
+	std::array<Scalar, 8> &t,
+	std::array<Scalar, 8> &u,
+	std::array<Scalar, 8> &v,
 	const CCDdata& data,
 	const int dimension,
-	const bool check_vf,
-	const Scalar eps,
-	const Scalar ms,
+	const bool is_edge_edge,
 	bool &bbox_in_eps,
 	Scalar &tol)
 {
-#ifdef TIGHT_INCLUSION_USE_TIMER
-	Timer timer;
-#endif
+
 	std::array<Scalar, 8> vs;
-	int count = 0;
 	bbox_in_eps = false;
-#ifdef TIGHT_INCLUSION_USE_TIMER
-	timer.start();
-#endif
-	if (check_vf)
+	if (is_edge_edge) // ee
 	{
-		vs = function_vf(
-			a0s[dimension], a1s[dimension], b0s[dimension], b1s[dimension],
-			a0e[dimension], a1e[dimension], b0e[dimension], b1e[dimension],
-			t_up, t_dw, u_up, u_dw, v_up, v_dw);
+		vs = function_ee(
+			data.v0s[dimension],data.v1s[dimension],data.v2s[dimension],data.v3s[dimension],
+			data.v0e[dimension],data.v1e[dimension],data.v2e[dimension],data.v3e[dimension],
+			t,u,v);
 	}
 	else
 	{
-		vs = function_ee(
-			a0s[dimension], a1s[dimension], b0s[dimension], b1s[dimension],
-			a0e[dimension], a1e[dimension], b0e[dimension], b1e[dimension],
-			t_up, t_dw, u_up, u_dw, v_up, v_dw);
+		vs = function_vf(
+			data.v0s[dimension],data.v1s[dimension],data.v2s[dimension],data.v3s[dimension],
+			data.v0e[dimension],data.v1e[dimension],data.v2e[dimension],data.v3e[dimension],
+			t,u,v);
 	}
-#ifdef TIGHT_INCLUSION_USE_TIMER
-	timer.stop();
-	time25 += timer.getElapsedTimeInMicroSec();
 
-#endif
 	Scalar minv = vs[0], maxv = vs[0];
 
 	for (int i = 1; i < 8; i++)
@@ -370,14 +355,49 @@ bool evaluate_bbox_one_dimension_vector_return_tolerance(
 		}
 	}
 	tol = maxv - minv; // this is the real tolerance
-	if (minv - ms > eps || maxv + ms < -eps)
+	if (minv - data.ms > data.err[dimension] || maxv + data.ms < -data.err[dimension])
 		return false;
-	if (minv + ms >= -eps && maxv - ms <= eps)
+	if (minv + data.ms >= -data.err[dimension] && maxv - data.ms <= data.err[dimension])
 	{
 		bbox_in_eps = true;
 	}
 	return true;
 }
+inline bool Origin_in_inclusion_function_memory_pool_avx2(
+	
+	const CCDdata& data,
+	const bool is_edge_edge,
+	const MP_unit &unit,
+	Scalar &true_tol, bool &box_in_eps)
+{
+
+	box_in_eps = false;
+	std::array<Scalar, 8> t;
+	std::array<Scalar, 8> u;
+	std::array<Scalar, 8> v;
+	Scalar tmp_tolerance;
+	true_tol=0;
+
+	convert_tuv_to_array(unit, t, u, v);
+
+	bool ck;
+	bool box_in[3];
+	for (int i = 0; i < 3; i++)
+	{
+		ck = evaluate_bbox_one_dimension_vector_return_tolerance(
+			t,u,v,data, i, is_edge_edge, box_in[i],
+			tmp_tolerance);
+		true_tol=max(tmp_tolerance,true_tol);
+		if (!ck)
+			return false;
+	}
+	if (box_in[0] && box_in[1] && box_in[2])
+	{
+		box_in_eps = true;
+	}
+	return true;
+}
+
 inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
 {
 	box_in = true;
@@ -385,6 +405,7 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 	Scalar vmin = SCALAR_LIMIT;
 	Scalar vmax = -SCALAR_LIMIT;
 	Scalar value;
+	true_tol=0;
 
 	for (bp.dim = 0; bp.dim < 3; bp.dim++)
 	{
@@ -417,7 +438,7 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 			}
 		}
 
-		true_tol = vmax - vmin;
+		true_tol = max(vmax - vmin, true_tol);
 
 		if (vmin - data_in.ms > data_in.err[bp.dim] || vmax + data_in.ms < -data_in.err[bp.dim])
 		{
@@ -573,7 +594,7 @@ void ccd_memory_pool_parallel( // parallel with different unit_id
 
 	Scalar true_tol = 0;
 	bool box_in;
-	const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit, true_tol, box_in);
+	const bool zero_in = Origin_in_inclusion_function_memory_pool_avx2(data, is_edge, temp_unit, true_tol, box_in);
 
 	if (zero_in)
 	{
