@@ -401,11 +401,12 @@ inline bool Origin_in_inclusion_function_memory_pool_avx2(
 inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
 {
 	box_in = true;
+	true_tol=0;
+	
 	BoxPrimitives bp;
 	Scalar vmin = SCALAR_LIMIT;
 	Scalar vmax = -SCALAR_LIMIT;
 	Scalar value;
-	true_tol=0;
 
 	for (bp.dim = 0; bp.dim < 3; bp.dim++)
 	{
@@ -448,7 +449,6 @@ inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, con
 		if (vmin + data_in.ms < -data_in.err[bp.dim] || vmax - data_in.ms > data_in.err[bp.dim])
 		{
 			box_in = false;
-			return true;
 		}
 	}
 	return true;
