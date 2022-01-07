@@ -7,8 +7,6 @@
 #include <iterator>
 #include "read_rational_csv.hpp"
 
-using namespace ccd;
-
 extern std::vector<std::string> simulation_folders, handcrafted_folders;
 
 struct Args
@@ -25,11 +23,11 @@ struct Args
 
 std::vector<std::string> file_path_base();
 
-std::vector<std::array<Scalar, 3>>
+std::vector<std::array<cpu_ti::Scalar, 3>>
 read_rational_csv_bin(const std::string &filename, std::vector<bool> &results);
 
 void read_rational_binary(
 	const std::string &inputFileName, std::vector<bool> &results);
 
 void read_rational_binary(
-	const std::string &inputFileName, std::vector<std::array<Scalar, 3>> &vs);
+	const std::string &inputFileName, std::vector<std::array<cpu_ti::Scalar, 3>> &vs);

@@ -1,5 +1,5 @@
-#include "Type.hpp"
-#include "timer.hpp"
+#include <cpu_ti/type.hpp>
+#include <cpu_ti/timer.hpp>
 #include "io.h"
 
 #include <filesystem>
@@ -17,6 +17,7 @@
 #include <unistd.h>
 #endif
 
+using namespace cpu_ti;
 extern std::vector<std::string> simulation_folders, handcrafted_folders;
 
 std::array<std::array<Scalar, 3>, 8> substract_ccd(const std::vector<std::array<Scalar, 3>> &data, int nbr)
@@ -124,7 +125,7 @@ void run_rational_data_single_method_parallel(
 			nbr_files++;
 			// std::cout<<"filename "<<filename<<std::endl;
 			// exit(0);
-			// all_V = ccd::read_rational_csv(filename, results);
+			// all_V = read_rational_csv(filename, results);
 			// all_V = read_rational_csv_bin(filename, results);
 
 			std::string filename_noext =
@@ -197,7 +198,10 @@ void run_rational_data_single_method_parallel(
 	result_list.resize(size);
 	tois.resize(size);
 
-	double toi = memory_pool_ccd_run(queries, is_edge_edge, tavg);
+	Timer timer;
+	timer.start();
+	double toi = ccd(queries, is_edge_edge);
+	tavg = timer.getElapsedTimeInMicroSec();
 
 	tavg /= size;
 	std::cout << "avg time " << tavg << std::endl;

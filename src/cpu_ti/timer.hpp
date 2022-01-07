@@ -24,7 +24,7 @@
 #endif
 #include <cstddef>
 
-namespace ccd
+namespace cpu_ti
 {
   class Timer
   {

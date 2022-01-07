@@ -1,5 +1,7 @@
 #include "io.h"
 
+using namespace cpu_ti;
+
 std::vector<std::string> simulation_folders = {{"chain", "cow-heads", "golf-ball", "mat-twist"}};
 std::vector<std::string> handcrafted_folders = {{"erleben-sliding-spike", "erleben-spike-wedge",
 												 "erleben-sliding-wedge", "erleben-wedge-crack", "erleben-spike-crack",
@@ -145,7 +147,7 @@ std::vector<std::array<Scalar, 3>>
 read_rational_csv_bin(const std::string &filename, std::vector<bool> &results)
 {
 
-	std::vector<std::array<Scalar, 3>> all_V = ccd::read_rational_csv(filename, results);
+	std::vector<std::array<Scalar, 3>> all_V = read_rational_csv(filename, results);
 	// std::cout<< "results: " << results.size() << std::endl;
 
 	// need to store contiguosly for bitstream
