@@ -663,6 +663,7 @@ namespace cpu_ti
 			data.v2e[i] = a[6][i];
 			data.v3e[i] = a[7][i];
 		}
+		data.ms = 0;
 		return data;
 	}
 
@@ -681,7 +682,7 @@ namespace cpu_ti
 		// std::cout << "input " << query_size << " " << is_edge << std::endl;
 
 		int vec_in = 0; // the id of the input vec, switch between 0 and 1
-		int vec_out = max_t;
+		int vec_out = 1;
 
 		units[vec_in].resize(query_size);
 
@@ -690,7 +691,7 @@ namespace cpu_ti
 		config.err_in[0] = -1;             // the input error bound calculate from the AABB of the whole mesh
 		config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
 		// config.max_itr = 1e6;              // the maximal nbr of iterations
-		config.toi = 1;
+		config.toi = max_t;
 		tbb::mutex qmutex;
 
 		// now initialize the CCDData and the units.
