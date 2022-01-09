@@ -228,5 +228,5 @@ namespace cpu_ti
 		Singleinterval second;
 	};
 
-	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge);
+	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t);
 } // namespace cpu_ti

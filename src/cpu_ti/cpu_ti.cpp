@@ -562,7 +562,7 @@ namespace cpu_ti
 		else
 		{
 			out.emplace_back(unit);
-			out.back().itv[1] = halves.second;
+			out.back().itv[split] = halves.second;
 		}
 
 		return false;
@@ -666,7 +666,7 @@ namespace cpu_ti
 		return data;
 	}
 
-	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge)
+	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t)
 	{
 		std::cout << "runnin CPU parallization" << std::endl;
 
@@ -678,8 +678,10 @@ namespace cpu_ti
 		std::array<std::vector<MP_unit>, 2> units; // the input units and output units
 		std::vector<CCDdata> data(query_size);     // input data list
 
+		// std::cout << "input " << query_size << " " << is_edge << std::endl;
+
 		int vec_in = 0; // the id of the input vec, switch between 0 and 1
-		int vec_out = 1;
+		int vec_out = max_t;
 
 		units[vec_in].resize(query_size);
 
@@ -755,7 +757,7 @@ namespace cpu_ti
 
 			// timer.stop();
 			// run_time = timer.getElapsedTimeInMicroSec();
-			// std::cout << "timing merge " << run_time / 1000 << " size=" << size << "/" << units[vec_out].size() << std::endl;
+			// std::cout << "done : " << units[vec_out].size() << std::endl;
 
 			// timer.start();
 			// tbb::parallel_sort(units[vec_out].begin(), units[vec_out].end(), [](const MP_unit &a, const MP_unit &b) {
@@ -775,6 +777,8 @@ namespace cpu_ti
 
 		// timer.stop();
 		// run_time = timer.getElapsedTimeInMicroSec();
+
+		// std::cout << config.toi << std::endl;
 
 		return config.toi;
 	}
