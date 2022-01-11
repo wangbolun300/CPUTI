@@ -582,7 +582,7 @@ namespace cpu_ti
 		const MP_unit temp_unit = vec_in[unit_id];
 		const int box_id = temp_unit.query_id;
 
-		const CCDdata &data = data_in[box_id];
+		const CCDdata data = data_in[box_id];
 		const int query_size = data_in.size();
 
 		Scalar widths[3];
