@@ -23,6 +23,7 @@ using namespace std;
 namespace cpu_ti
 {
 
+#ifdef CALCULATE_ERROR_BOUND
 	inline void get_numerical_error_vf_memory_pool(CCDdata &data_in)
 	{
 #ifdef GPUTI_USE_DOUBLE_PRECISION
@@ -120,6 +121,8 @@ namespace cpu_ti
 		data_in.err[2] = zmax * zmax * zmax * vffilter;
 		return;
 	}
+
+#endif
 
 	inline void compute_face_vertex_tolerance_memory_pool(CCDdata &data_in, const CCDConfig &config)
 	{
@@ -572,18 +575,11 @@ namespace cpu_ti
 	// input: "refine" is the number of iterations out side this function
 	//        "qmutex" is the mutex for the queue
 	void ccd_memory_pool_parallel( // parallel with different unit_id
-		const bool is_edge, const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
-		const std::vector<CCDdata> &data_in, CCDConfig &config,
-		int unit_id,
+		const bool is_edge, const MP_unit &temp_unit, std::vector<MP_unit> &vec_out,
+		const CCDdata &data, CCDConfig &config,
 		tbb::spin_mutex &mutex)
 	{
 		//TODO maybe record collision pairs
-
-		const MP_unit temp_unit = vec_in[unit_id];
-		const int box_id = temp_unit.query_id;
-
-		const CCDdata data = data_in[box_id];
-		const int query_size = data_in.size();
 
 		Scalar widths[3];
 		bool condition;
@@ -718,11 +714,21 @@ namespace cpu_ti
 
 			tbb::parallel_for(tbb::blocked_range<int>(0, remain_unit_size), [&](tbb::blocked_range<int> r) {
 				std::vector<MP_unit> &local_storage = storage.local();
+				int prev_box_id = -1;
+				CCDdata temp_data;
 
 				// local_storage.reserve(remain_unit_size);
 				for (int i = r.begin(); i < r.end(); ++i)
 				{
-					ccd_memory_pool_parallel(is_edge, units[vec_in], local_storage, data, config, i, qmutex);
+					const MP_unit temp_unit = units[vec_in][i];
+					const int box_id = temp_unit.query_id;
+					if (box_id != prev_box_id)
+					{
+						temp_data = data[box_id];
+						prev_box_id = box_id;
+					}
+
+					ccd_memory_pool_parallel(is_edge, temp_unit, local_storage, temp_data, config, qmutex);
 				}
 			});
 			// timer.stop();

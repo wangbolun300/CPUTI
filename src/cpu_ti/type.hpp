@@ -144,7 +144,9 @@ namespace cpu_ti
 		Scalar v2e[3];
 		Scalar v3e[3];
 
+#ifdef CALCULATE_ERROR_BOUND
 		Scalar err[3]; // error bound of each query, calculated from each scene
+#endif
 		Scalar tol[3]; // domain tolerance that helps to decide which dimension to split
 
 		CCDdata &operator=(const CCDdata &x)
