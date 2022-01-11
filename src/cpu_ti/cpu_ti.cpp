@@ -5,7 +5,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
-#include <tbb/mutex.h>
+#include <tbb/spin_mutex.h>
 
 #include <tbb/parallel_for.h>
 // #include <tbb/task_scheduler_init.h>
@@ -458,7 +458,7 @@ namespace cpu_ti
 		return true;
 	}
 
-	inline void mutex_update_min(tbb::mutex &mutex, Scalar &value, const Scalar &compare)
+	inline void mutex_update_min(tbb::spin_mutex &mutex, Scalar &value, const Scalar &compare)
 	{
 		mutex.lock();
 		value = compare < value ? compare : value; // if compare is smaller, update it
@@ -575,14 +575,14 @@ namespace cpu_ti
 		const bool is_edge, const std::vector<MP_unit> &vec_in, std::vector<MP_unit> &vec_out,
 		const std::vector<CCDdata> &data_in, CCDConfig &config,
 		int unit_id,
-		tbb::mutex &mutex)
+		tbb::spin_mutex &mutex)
 	{
 		//TODO maybe record collision pairs
 
 		const MP_unit temp_unit = vec_in[unit_id];
 		const int box_id = temp_unit.query_id;
 
-		const CCDdata data = data_in[box_id];
+		const CCDdata &data = data_in[box_id];
 		const int query_size = data_in.size();
 
 		Scalar widths[3];
@@ -649,9 +649,8 @@ namespace cpu_ti
 		}
 	}
 
-	inline CCDdata array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a)
+	inline void array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a, CCDdata &data)
 	{
-		CCDdata data;
 #pragma unroll
 		for (int i = 0; i < 3; i++)
 		{
@@ -664,7 +663,6 @@ namespace cpu_ti
 			data.v2e[i] = a[6][i];
 			data.v3e[i] = a[7][i];
 		}
-		return data;
 	}
 
 	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t, double tolerace, double ms)
@@ -691,7 +689,7 @@ namespace cpu_ti
 		config.ms = ms;
 		// config.max_itr = 1e6;              // the maximal nbr of iterations
 		config.toi = max_t;
-		tbb::mutex qmutex;
+		tbb::spin_mutex qmutex;
 
 		// now initialize the CCDData and the units.
 
@@ -699,7 +697,7 @@ namespace cpu_ti
 			for (int i = r.begin(); i < r.end(); ++i)
 			{
 				units[vec_in][i].init(i);
-				data[i] = array_to_ccd(V[i]);
+				array_to_ccd(V[i], data[i]);
 				if (is_edge)
 					compute_ee_tolerance_and_error_bound_memory_pool(data[i], config);
 				else

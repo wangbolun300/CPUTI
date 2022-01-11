@@ -6,11 +6,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <tbb/blocked_range.h>
-#include <tbb/enumerable_thread_specific.h>
-#include <tbb/mutex.h>
-#include <tbb/parallel_for.h>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 #ifdef _WIN32
 #include <Windows.h>
 #else
@@ -335,7 +331,7 @@ int main(int argc, char **argv)
 		std::cout << "wrong parallel nbr = " << parallel << std::endl;
 		return 0;
 	}
-	tbb::task_scheduler_init init(parallel);
+	const auto thread_limiter = tbb::global_control(tbb::global_control::max_allowed_parallelism, parallel);
 	run_ours_float_for_all_data(parallel);
 	std::cout << "done!" << std::endl;
 	return 0;
