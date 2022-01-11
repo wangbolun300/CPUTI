@@ -200,7 +200,7 @@ void run_rational_data_single_method_parallel(
 
 	Timer timer;
 	timer.start();
-	double toi = ccd(queries, is_edge_edge);
+	double toi = ccd(queries, is_edge_edge, 1, 1e-6, 0);
 	tavg = timer.getElapsedTimeInMicroSec();
 
 	tavg /= size;

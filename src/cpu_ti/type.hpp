@@ -83,9 +83,8 @@ namespace cpu_ti
 	{
 	public:
 		inline CCDConfig(){};
-		Scalar err_in[3];           // the input error bound calculate from the AABB of the
-									// whole mesh
 		Scalar co_domain_tolerance; // tolerance of the co-domain
+		Scalar ms;                  // minimum separation
 		// int max_itr;                // the maximal nbr of iterations, TODO not there yet
 		Scalar toi;
 	};
@@ -144,7 +143,7 @@ namespace cpu_ti
 		Scalar v1e[3];
 		Scalar v2e[3];
 		Scalar v3e[3];
-		Scalar ms;     // minimum separation
+
 		Scalar err[3]; // error bound of each query, calculated from each scene
 		Scalar tol[3]; // domain tolerance that helps to decide which dimension to split
 
@@ -165,7 +164,6 @@ namespace cpu_ti
 				err[i] = x.err[i];
 				tol[i] = x.tol[i];
 			}
-			ms = x.ms;
 
 			return *this;
 		}
@@ -228,5 +226,5 @@ namespace cpu_ti
 		Singleinterval second;
 	};
 
-	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t);
+	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t, double tolerace, double ms);
 } // namespace cpu_ti

@@ -322,6 +322,7 @@ namespace cpu_ti
 		std::array<Scalar, 8> &u,
 		std::array<Scalar, 8> &v,
 		const CCDdata &data,
+		double ms,
 		const int dimension,
 		const bool is_edge_edge,
 		bool &bbox_in_eps,
@@ -359,17 +360,17 @@ namespace cpu_ti
 			}
 		}
 		tol = maxv - minv; // this is the real tolerance
-		if (minv - data.ms > data.err[dimension] || maxv + data.ms < -data.err[dimension])
+		if (minv - ms > data.err[dimension] || maxv + ms < -data.err[dimension])
 			return false;
-		if (minv + data.ms >= -data.err[dimension] && maxv - data.ms <= data.err[dimension])
+		if (minv + ms >= -data.err[dimension] && maxv - ms <= data.err[dimension])
 		{
 			bbox_in_eps = true;
 		}
 		return true;
 	}
 	inline bool Origin_in_inclusion_function_memory_pool_avx2(
-
 		const CCDdata &data,
+		double ms,
 		const bool is_edge_edge,
 		const MP_unit &unit,
 		Scalar &true_tol, bool &box_in_eps)
@@ -389,7 +390,7 @@ namespace cpu_ti
 		for (int i = 0; i < 3; i++)
 		{
 			ck = evaluate_bbox_one_dimension_vector_return_tolerance(
-				t, u, v, data, i, is_edge_edge, box_in[i],
+				t, u, v, data, ms, i, is_edge_edge, box_in[i],
 				tmp_tolerance);
 			true_tol = max(tmp_tolerance, true_tol);
 			if (!ck)
@@ -402,7 +403,7 @@ namespace cpu_ti
 		return true;
 	}
 
-	inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
+	inline bool Origin_in_inclusion_function_memory_pool(const CCDdata &data_in, const double ms, const bool is_edge, const MP_unit &unit, Scalar &true_tol, bool &box_in)
 	{
 		box_in = true;
 		true_tol = 0;
@@ -444,12 +445,12 @@ namespace cpu_ti
 
 			true_tol = max(vmax - vmin, true_tol);
 
-			if (vmin - data_in.ms > data_in.err[bp.dim] || vmax + data_in.ms < -data_in.err[bp.dim])
+			if (vmin - ms > data_in.err[bp.dim] || vmax + ms < -data_in.err[bp.dim])
 			{
 				return false;
 			}
 
-			if (vmin + data_in.ms < -data_in.err[bp.dim] || vmax - data_in.ms > data_in.err[bp.dim])
+			if (vmin + ms < -data_in.err[bp.dim] || vmax - ms > data_in.err[bp.dim])
 			{
 				box_in = false;
 			}
@@ -598,9 +599,9 @@ namespace cpu_ti
 		Scalar true_tol = 0;
 		bool box_in;
 #ifdef CPUTICCD_USE_AVX2
-		const bool zero_in = Origin_in_inclusion_function_memory_pool_avx2(data, is_edge, temp_unit, true_tol, box_in);
+		const bool zero_in = Origin_in_inclusion_function_memory_pool_avx2(data, config.ms, is_edge, temp_unit, true_tol, box_in);
 #else
-		const bool zero_in = Origin_in_inclusion_function_memory_pool(data, is_edge, temp_unit, true_tol, box_in);
+		const bool zero_in = Origin_in_inclusion_function_memory_pool(data, config.ms, is_edge, temp_unit, true_tol, box_in);
 #endif
 		if (zero_in)
 		{
@@ -663,11 +664,10 @@ namespace cpu_ti
 			data.v2e[i] = a[6][i];
 			data.v3e[i] = a[7][i];
 		}
-		data.ms = 0;
 		return data;
 	}
 
-	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t)
+	double ccd(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge, double max_t, double tolerace, double ms)
 	{
 		std::cout << "runnin CPU parallization" << std::endl;
 
@@ -686,10 +686,9 @@ namespace cpu_ti
 
 		units[vec_in].resize(query_size);
 
-		// units[vec_out].resize(query_size * 2); // set the capicity of the output queue as twice large as the input
 		CCDConfig config;
-		config.err_in[0] = -1;             // the input error bound calculate from the AABB of the whole mesh
-		config.co_domain_tolerance = 1e-6; // tolerance of the co-domain
+		config.co_domain_tolerance = tolerace; // tolerance of the co-domain
+		config.ms = ms;
 		// config.max_itr = 1e6;              // the maximal nbr of iterations
 		config.toi = max_t;
 		tbb::mutex qmutex;
